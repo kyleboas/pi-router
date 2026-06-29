@@ -1,0 +1,1646 @@
+{
+  "summary": {
+    "total": 65,
+    "collisionCases": 36,
+    "collisionRate": 0.5538,
+    "harmfulCollisionCount": 16,
+    "harmfulCollisionRate": 0.4444,
+    "winnerWrongCount": 0,
+    "tieCollisionCount": 16,
+    "knownGapCollisionIds": [],
+    "knownGapNonCollisionIds": []
+  },
+  "byPair": {
+    "code+write": 2,
+    "research+write": 3,
+    "fast+write": 1,
+    "general+research": 1,
+    "code+general": 1,
+    "fast+general+write": 3,
+    "code+fast+general": 1,
+    "code+research": 5,
+    "reason+write": 5,
+    "code+fast": 5,
+    "code+reason+write": 1,
+    "fast+reason": 1,
+    "code+fast+write": 2,
+    "code+fast+reason": 1,
+    "fast+research": 1,
+    "reason+research": 2,
+    "reason+research+write": 1
+  },
+  "byHarm": {
+    "benign": 20,
+    "harmful-near-miss": 16,
+    "winner-wrong": 0
+  },
+  "harmfulByPair": {
+    "code+write": 1,
+    "research+write": 2,
+    "fast+write": 1,
+    "general+research": 1,
+    "code+general": 1,
+    "fast+general+write": 3,
+    "code+fast+general": 1,
+    "code+research": 1,
+    "code+fast": 1,
+    "code+reason+write": 1,
+    "fast+reason": 1,
+    "code+fast+write": 1,
+    "reason+research+write": 1
+  },
+  "harmfulBySelectedRule": {
+    "code-keywords": 4,
+    "research-keywords": 4,
+    "write-keywords": 1,
+    "verification-guard": 5,
+    "policy-guard": 1,
+    "reason-keywords": 1
+  },
+  "marginBuckets": {
+    "negative": 2,
+    "tie": 16,
+    "0.01-0.05": 12,
+    "0.06-0.10": 3,
+    ">0.10": 3,
+    "none": 0
+  },
+  "selectedRuleHistogram": {
+    "code-keywords": 11,
+    "research-keywords": 12,
+    "write-keywords": 1,
+    "verification-guard": 5,
+    "policy-guard": 1,
+    "reason-keywords": 6
+  },
+  "collisions": [
+    {
+      "id": "code-002",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "code+write",
+      "routes": [
+        "code",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "research-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "research+write",
+      "routes": [
+        "research",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "research-002",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "research+write",
+      "routes": [
+        "research",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "write-004",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [],
+      "actual": "write",
+      "selectedRule": "write-keywords",
+      "winnerConfidence": 0.8,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "fast+write",
+      "routes": [
+        "fast",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": -0.05,
+      "marginBucket": "negative",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ],
+      "note": "Rewrite-only prose requests should route to writing unless code terms are present."
+    },
+    {
+      "id": "general-001",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "actual": "general",
+      "selectedRule": "verification-guard",
+      "winnerConfidence": 0.95,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "general+research",
+      "routes": [
+        "general",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "research-keywords",
+        "route": "research",
+        "confidence": 0.85
+      },
+      "margin": 0.1,
+      "marginBucket": "0.06-0.10",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.95,
+          "reason": "false-premise/hallucination guard task",
+          "route": "general",
+          "rule": "verification-guard",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "general-002",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "actual": "general",
+      "selectedRule": "policy-guard",
+      "winnerConfidence": 0.95,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "code+general",
+      "routes": [
+        "code",
+        "general"
+      ],
+      "runnerUp": {
+        "rule": "code-keywords",
+        "route": "code",
+        "confidence": 0.85
+      },
+      "margin": 0.1,
+      "marginBucket": "0.06-0.10",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.95,
+          "reason": "policy/general pi guidance task",
+          "route": "general",
+          "rule": "policy-guard",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "guardrail-verify-001",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "actual": "general",
+      "selectedRule": "verification-guard",
+      "winnerConfidence": 0.95,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "fast+general+write",
+      "routes": [
+        "fast",
+        "general",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.15,
+      "marginBucket": ">0.10",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.95,
+          "reason": "false-premise/hallucination guard task",
+          "route": "general",
+          "rule": "verification-guard",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "guardrail-verify-002",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "actual": "general",
+      "selectedRule": "verification-guard",
+      "winnerConfidence": 0.95,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "fast+general+write",
+      "routes": [
+        "fast",
+        "general",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.15,
+      "marginBucket": ">0.10",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.95,
+          "reason": "false-premise/hallucination guard task",
+          "route": "general",
+          "rule": "verification-guard",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "guardrail-verify-003",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "actual": "general",
+      "selectedRule": "verification-guard",
+      "winnerConfidence": 0.95,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "code+fast+general",
+      "routes": [
+        "code",
+        "fast",
+        "general"
+      ],
+      "runnerUp": {
+        "rule": "code-keywords",
+        "route": "code",
+        "confidence": 0.85
+      },
+      "margin": 0.1,
+      "marginBucket": "0.06-0.10",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.95,
+          "reason": "false-premise/hallucination guard task",
+          "route": "general",
+          "rule": "verification-guard",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "ambiguous-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "code"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+research",
+      "routes": [
+        "code",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "code-keywords",
+        "route": "code",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": false
+        }
+      ],
+      "note": "Mixed production investigation plus code fix."
+    },
+    {
+      "id": "ambiguous-002",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "code+research",
+      "routes": [
+        "code",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "code-keywords",
+        "route": "code",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": false
+        }
+      ],
+      "note": "Evidence-gathering intent should outrank incidental code vocabulary."
+    },
+    {
+      "id": "ambiguous-003",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [
+        "reason"
+      ],
+      "actual": "reason",
+      "selectedRule": "reason-keywords",
+      "winnerConfidence": 0.8,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "reason+write",
+      "routes": [
+        "reason",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ],
+      "note": "Could be writing or reasoning depending on phase."
+    },
+    {
+      "id": "ambiguous-004",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [
+        "reason"
+      ],
+      "actual": "reason",
+      "selectedRule": "reason-keywords",
+      "winnerConfidence": 0.8,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "reason+write",
+      "routes": [
+        "reason",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "ambiguous-005",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "write"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "code+fast",
+      "routes": [
+        "code",
+        "fast"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "ambiguous-006",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "reason"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "code+reason+write",
+      "routes": [
+        "code",
+        "reason",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "reason-keywords",
+        "route": "reason",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "mode-003",
+      "mode": "strong",
+      "expected": "reason",
+      "acceptable": [],
+      "actual": "reason",
+      "selectedRule": "reason-keywords",
+      "winnerConfidence": 0.8,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "fast+reason",
+      "routes": [
+        "fast",
+        "reason"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": -0.05,
+      "marginBucket": "negative",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-001",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+fast",
+      "routes": [
+        "code",
+        "fast"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ],
+      "note": "Trivial-prefix wording plus repo context."
+    },
+    {
+      "id": "boundary-002",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+fast",
+      "routes": [
+        "code",
+        "fast"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-003",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+fast",
+      "routes": [
+        "code",
+        "fast"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-004",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+fast",
+      "routes": [
+        "code",
+        "fast"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-005",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "code+fast+write",
+      "routes": [
+        "code",
+        "fast",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-006",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "write"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+write",
+      "routes": [
+        "code",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-007",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "research",
+        "write"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "research+write",
+      "routes": [
+        "research",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-008",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "research"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+research",
+      "routes": [
+        "code",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "code-keywords",
+        "route": "code",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-009",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "code"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+research",
+      "routes": [
+        "code",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "code-keywords",
+        "route": "code",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-010",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [
+        "write"
+      ],
+      "actual": "reason",
+      "selectedRule": "reason-keywords",
+      "winnerConfidence": 0.8,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "reason+write",
+      "routes": [
+        "reason",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-011",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [
+        "write"
+      ],
+      "actual": "reason",
+      "selectedRule": "reason-keywords",
+      "winnerConfidence": 0.8,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "reason+write",
+      "routes": [
+        "reason",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-012",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [
+        "reason"
+      ],
+      "actual": "reason",
+      "selectedRule": "reason-keywords",
+      "winnerConfidence": 0.8,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "reason+write",
+      "routes": [
+        "reason",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-013",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "actual": "general",
+      "selectedRule": "verification-guard",
+      "winnerConfidence": 0.95,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "fast+general+write",
+      "routes": [
+        "fast",
+        "general",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.15,
+      "marginBucket": ">0.10",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.95,
+          "reason": "false-premise/hallucination guard task",
+          "route": "general",
+          "rule": "verification-guard",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-015",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "reason",
+        "fast"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+fast+reason",
+      "routes": [
+        "code",
+        "fast",
+        "reason"
+      ],
+      "runnerUp": {
+        "rule": "reason-keywords",
+        "route": "reason",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-016",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "code"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+research",
+      "routes": [
+        "code",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "code-keywords",
+        "route": "code",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-017",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "write",
+        "fast"
+      ],
+      "actual": "code",
+      "selectedRule": "code-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "code+fast+write",
+      "routes": [
+        "code",
+        "fast",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "write-keywords",
+        "route": "write",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "coding task",
+          "route": "code",
+          "rule": "code-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "boundary-018",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "fast"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "fast+research",
+      "routes": [
+        "fast",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "balanced-trivial",
+        "route": "fast",
+        "confidence": 0.85
+      },
+      "margin": 0,
+      "marginBucket": "tie",
+      "tie": true,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.85,
+          "reason": "short simple prompt",
+          "route": "fast",
+          "rule": "balanced-trivial",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "research-reason-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "reason"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "reason+research",
+      "routes": [
+        "reason",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "reason-keywords",
+        "route": "reason",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": false
+        }
+      ],
+      "note": "Research intent plus reasoning cue should remain synthesis-worthy."
+    },
+    {
+      "id": "research-reason-002",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "reason"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "harmful-near-miss",
+      "pair": "reason+research+write",
+      "routes": [
+        "reason",
+        "research",
+        "write"
+      ],
+      "runnerUp": {
+        "rule": "reason-keywords",
+        "route": "reason",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": false
+        },
+        {
+          "confidence": 0.8,
+          "reason": "writing task",
+          "route": "write",
+          "rule": "write-keywords",
+          "selected": false
+        }
+      ]
+    },
+    {
+      "id": "synthesis-worthy-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "reason"
+      ],
+      "actual": "research",
+      "selectedRule": "research-keywords",
+      "winnerConfidence": 0.85,
+      "routeAccepted": true,
+      "harm": "benign",
+      "pair": "reason+research",
+      "routes": [
+        "reason",
+        "research"
+      ],
+      "runnerUp": {
+        "rule": "reason-keywords",
+        "route": "reason",
+        "confidence": 0.8
+      },
+      "margin": 0.05,
+      "marginBucket": "0.01-0.05",
+      "tie": false,
+      "matches": [
+        {
+          "confidence": 0.85,
+          "reason": "research/production evidence task",
+          "route": "research",
+          "rule": "research-keywords",
+          "selected": true
+        },
+        {
+          "confidence": 0.8,
+          "reason": "reasoning/planning task",
+          "route": "reason",
+          "rule": "reason-keywords",
+          "selected": false
+        }
+      ],
+      "note": "Long production tradeoff prompt should be eligible for advisory synthesis when configured."
+    }
+  ]
+}

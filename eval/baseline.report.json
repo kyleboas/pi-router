@@ -1,0 +1,1325 @@
+{
+  "summary": {
+    "total": 65,
+    "must": 38,
+    "mustAccuracy": 1,
+    "mustAccuracyExcludingKnownGaps": 1,
+    "allAccuracy": 1,
+    "knownGapFailures": 0,
+    "guardrailRecall": 1
+  },
+  "confusion": {
+    "fast": {
+      "fast": 4,
+      "code": 0,
+      "reason": 0,
+      "write": 0,
+      "research": 0,
+      "general": 0
+    },
+    "code": {
+      "fast": 0,
+      "code": 16,
+      "reason": 0,
+      "write": 0,
+      "research": 2,
+      "general": 0
+    },
+    "reason": {
+      "fast": 0,
+      "code": 0,
+      "reason": 8,
+      "write": 0,
+      "research": 0,
+      "general": 0
+    },
+    "write": {
+      "fast": 0,
+      "code": 0,
+      "reason": 3,
+      "write": 6,
+      "research": 0,
+      "general": 0
+    },
+    "research": {
+      "fast": 0,
+      "code": 0,
+      "reason": 0,
+      "write": 0,
+      "research": 13,
+      "general": 0
+    },
+    "general": {
+      "fast": 0,
+      "code": 0,
+      "reason": 0,
+      "write": 0,
+      "research": 0,
+      "general": 13
+    }
+  },
+  "ruleHistogram": {
+    "balanced-trivial": 2,
+    "fast-mode-trivial": 2,
+    "code-keywords": 16,
+    "research-keywords": 15,
+    "reason-keywords": 11,
+    "write-keywords": 6,
+    "verification-guard": 6,
+    "policy-guard": 5,
+    "default-general": 2
+  },
+  "knownGapsByRule": {},
+  "confidenceCalibration": {
+    "0.00-0.60": {
+      "count": 2,
+      "accepted": 2,
+      "accuracy": 1
+    },
+    "0.60-0.80": {
+      "count": 0,
+      "accepted": 0,
+      "accuracy": 1
+    },
+    "0.80-0.90": {
+      "count": 50,
+      "accepted": 50,
+      "accuracy": 1
+    },
+    "0.90-1.00": {
+      "count": 13,
+      "accepted": 13,
+      "accuracy": 1
+    }
+  },
+  "unexpectedMustFailures": [],
+  "guardrailFailures": [],
+  "signalFailures": [],
+  "knownGaps": [],
+  "decisions": [
+    {
+      "id": "fast-001",
+      "mode": "balanced",
+      "expected": "fast",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "fast",
+      "thinkingLevel": "minimal",
+      "confidence": 0.85,
+      "rule": "balanced-trivial",
+      "signals": [
+        "trivial-prompt"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Short trivial prompt should avoid expensive routing."
+    },
+    {
+      "id": "fast-002",
+      "mode": "fast",
+      "expected": "fast",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "fast",
+      "thinkingLevel": "minimal",
+      "confidence": 0.9,
+      "rule": "fast-mode-trivial",
+      "signals": [
+        "fast-mode",
+        "trivial-prompt"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "fast-003",
+      "mode": "strong",
+      "expected": "fast",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "fast",
+      "thinkingLevel": "minimal",
+      "confidence": 0.85,
+      "rule": "balanced-trivial",
+      "signals": [
+        "trivial-prompt"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "code-001",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "code-002",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "code-003",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "code-004",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "code-005",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "research-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "research-002",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "research-003",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "research-004",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "reason-001",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "reason-002",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "reason-003",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "reason-004",
+      "mode": "fast",
+      "expected": "reason",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "medium",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "write-001",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.8,
+      "rule": "write-keywords",
+      "signals": [
+        "writing-or-editing"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "write-002",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.8,
+      "rule": "write-keywords",
+      "signals": [
+        "writing-or-editing"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "write-003",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.8,
+      "rule": "write-keywords",
+      "signals": [
+        "writing-or-editing"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "write-004",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.8,
+      "rule": "write-keywords",
+      "signals": [
+        "writing-or-editing"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Rewrite-only prose requests should route to writing unless code terms are present."
+    },
+    {
+      "id": "general-001",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "verification"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "verification-guard",
+      "signals": [
+        "verification-risk",
+        "hallucination-guard"
+      ],
+      "guardrails": [
+        "verification"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "general-002",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "policy"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "policy-guard",
+      "signals": [
+        "local-policy",
+        "workflow-guidance"
+      ],
+      "guardrails": [
+        "policy"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "general-003",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "policy"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "policy-guard",
+      "signals": [
+        "local-policy",
+        "workflow-guidance"
+      ],
+      "guardrails": [
+        "policy"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "general-004",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.55,
+      "rule": "default-general",
+      "signals": [
+        "default-general"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "guardrail-verify-001",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "verification"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "verification-guard",
+      "signals": [
+        "verification-risk",
+        "hallucination-guard"
+      ],
+      "guardrails": [
+        "verification"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "guardrail-verify-002",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "verification"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "verification-guard",
+      "signals": [
+        "verification-risk",
+        "hallucination-guard"
+      ],
+      "guardrails": [
+        "verification"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "guardrail-verify-003",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "verification"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "verification-guard",
+      "signals": [
+        "verification-risk",
+        "hallucination-guard"
+      ],
+      "guardrails": [
+        "verification"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "guardrail-policy-001",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "policy"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "policy-guard",
+      "signals": [
+        "local-policy",
+        "workflow-guidance"
+      ],
+      "guardrails": [
+        "policy"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "guardrail-policy-002",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "policy"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "policy-guard",
+      "signals": [
+        "local-policy",
+        "workflow-guidance"
+      ],
+      "guardrails": [
+        "policy"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "ambiguous-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "code"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Mixed production investigation plus code fix."
+    },
+    {
+      "id": "ambiguous-002",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Evidence-gathering intent should outrank incidental code vocabulary."
+    },
+    {
+      "id": "ambiguous-003",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Could be writing or reasoning depending on phase."
+    },
+    {
+      "id": "ambiguous-004",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "ambiguous-005",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "write"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "ambiguous-006",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "mode-001",
+      "mode": "fast",
+      "expected": "code",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "medium",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "mode-002",
+      "mode": "fast",
+      "expected": "fast",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "fast",
+      "thinkingLevel": "minimal",
+      "confidence": 0.9,
+      "rule": "fast-mode-trivial",
+      "signals": [
+        "fast-mode",
+        "trivial-prompt"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "mode-003",
+      "mode": "strong",
+      "expected": "reason",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-001",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Trivial-prefix wording plus repo context."
+    },
+    {
+      "id": "boundary-002",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-003",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-004",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "fast"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-005",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-006",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "write"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-007",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "research",
+        "write"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-008",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "research"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-009",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "code"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-010",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [
+        "write"
+      ],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-011",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [
+        "write"
+      ],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-012",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-013",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "verification"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "verification-guard",
+      "signals": [
+        "verification-risk",
+        "hallucination-guard"
+      ],
+      "guardrails": [
+        "verification"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-014",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [
+        "fast"
+      ],
+      "expectedGuardrails": [
+        "policy"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "policy-guard",
+      "signals": [
+        "local-policy",
+        "workflow-guidance"
+      ],
+      "guardrails": [
+        "policy"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-015",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "reason",
+        "fast"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-016",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "code"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-017",
+      "mode": "balanced",
+      "expected": "code",
+      "acceptable": [
+        "write",
+        "fast"
+      ],
+      "expectedGuardrails": [],
+      "actual": "code",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "code-keywords",
+      "signals": [
+        "code-or-repo"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "boundary-018",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "fast"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "short-hard-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Short but high-risk production prompts should avoid cheap general routing."
+    },
+    {
+      "id": "short-hard-002",
+      "mode": "balanced",
+      "expected": "reason",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "reason",
+      "thinkingLevel": "high",
+      "confidence": 0.8,
+      "rule": "reason-keywords",
+      "signals": [
+        "reasoning-or-planning"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "write-safe-001",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.8,
+      "rule": "write-keywords",
+      "signals": [
+        "writing-or-editing"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "write-safe-002",
+      "mode": "balanced",
+      "expected": "write",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.8,
+      "rule": "write-keywords",
+      "signals": [
+        "writing-or-editing"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "research-reason-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Research intent plus reasoning cue should remain synthesis-worthy."
+    },
+    {
+      "id": "research-reason-002",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "guardrail-escalate-001",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [
+        "verification"
+      ],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.95,
+      "rule": "verification-guard",
+      "signals": [
+        "verification-risk",
+        "hallucination-guard"
+      ],
+      "guardrails": [
+        "verification"
+      ],
+      "routeAccepted": true,
+      "knownGap": false
+    },
+    {
+      "id": "synthesis-worthy-001",
+      "mode": "balanced",
+      "expected": "research",
+      "acceptable": [
+        "reason"
+      ],
+      "expectedGuardrails": [],
+      "actual": "research",
+      "thinkingLevel": "high",
+      "confidence": 0.85,
+      "rule": "research-keywords",
+      "signals": [
+        "research-or-production"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false,
+      "note": "Long production tradeoff prompt should be eligible for advisory synthesis when configured."
+    },
+    {
+      "id": "default-001",
+      "mode": "balanced",
+      "expected": "general",
+      "acceptable": [],
+      "expectedGuardrails": [],
+      "actual": "general",
+      "thinkingLevel": "medium",
+      "confidence": 0.55,
+      "rule": "default-general",
+      "signals": [
+        "default-general"
+      ],
+      "guardrails": [],
+      "routeAccepted": true,
+      "knownGap": false
+    }
+  ]
+}

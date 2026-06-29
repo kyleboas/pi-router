@@ -1,0 +1,602 @@
+[
+	{
+		"id": "fast-001",
+		"prompt": "hi",
+		"mode": "balanced",
+		"expected": "fast",
+		"tier": "must",
+		"expectSignals": [
+			"trivial-prompt"
+		],
+		"note": "Short trivial prompt should avoid expensive routing."
+	},
+	{
+		"id": "fast-002",
+		"prompt": "what is MCP?",
+		"mode": "fast",
+		"expected": "fast",
+		"tier": "must",
+		"expectSignals": [
+			"fast-mode",
+			"trivial-prompt"
+		]
+	},
+	{
+		"id": "fast-003",
+		"prompt": "thanks",
+		"mode": "strong",
+		"expected": "fast",
+		"tier": "must"
+	},
+	{
+		"id": "code-001",
+		"prompt": "fix the failing TypeScript tests",
+		"mode": "balanced",
+		"expected": "code",
+		"tier": "must",
+		"expectSignals": [
+			"code-or-repo"
+		]
+	},
+	{
+		"id": "code-002",
+		"prompt": "Inspect files, edit code, run npm test, and summarize.",
+		"mode": "balanced",
+		"expected": "code",
+		"tier": "must",
+		"expectSignals": [
+			"code-or-repo"
+		]
+	},
+	{
+		"id": "code-003",
+		"prompt": "Refactor this class and update the API tests.",
+		"mode": "balanced",
+		"expected": "code",
+		"tier": "must"
+	},
+	{
+		"id": "code-004",
+		"prompt": "Debug this Python traceback and propose a patch.",
+		"mode": "balanced",
+		"expected": "code",
+		"tier": "must"
+	},
+	{
+		"id": "code-005",
+		"prompt": "Open a PR after implementing the repo change.",
+		"mode": "balanced",
+		"expected": "code",
+		"tier": "must"
+	},
+	{
+		"id": "research-001",
+		"prompt": "investigate analytics report pipeline sources",
+		"mode": "balanced",
+		"expected": "research",
+		"tier": "must",
+		"expectSignals": [
+			"research-or-production"
+		]
+	},
+	{
+		"id": "research-002",
+		"prompt": "Investigate deploy OAuth and provider gateway logs for a production cron health report.",
+		"mode": "balanced",
+		"expected": "research",
+		"tier": "must"
+	},
+	{
+		"id": "research-003",
+		"prompt": "Find citations and evidence for the benchmark results.",
+		"mode": "balanced",
+		"expected": "research",
+		"tier": "must"
+	},
+	{
+		"id": "research-004",
+		"prompt": "Run an eval design review for the novelty detector.",
+		"mode": "balanced",
+		"expected": "research",
+		"tier": "must"
+	},
+	{
+		"id": "reason-001",
+		"prompt": "Why is this root cause analysis risky and what tradeoffs matter most?",
+		"mode": "balanced",
+		"expected": "reason",
+		"tier": "must",
+		"expectSignals": [
+			"reasoning-or-planning"
+		]
+	},
+	{
+		"id": "reason-002",
+		"prompt": "Compare these architectures and plan the migration constraints.",
+		"mode": "balanced",
+		"expected": "reason",
+		"tier": "must"
+	},
+	{
+		"id": "reason-003",
+		"prompt": "Prove whether this optimization is safe under the stated constraints.",
+		"mode": "balanced",
+		"expected": "reason",
+		"tier": "must"
+	},
+	{
+		"id": "reason-004",
+		"prompt": "Make a rollout plan and identify the tradeoffs.",
+		"mode": "fast",
+		"expected": "reason",
+		"tier": "must"
+	},
+	{
+		"id": "write-001",
+		"prompt": "write this in a cleaner style",
+		"mode": "balanced",
+		"expected": "write",
+		"tier": "must",
+		"expectSignals": [
+			"writing-or-editing"
+		]
+	},
+	{
+		"id": "write-002",
+		"prompt": "Draft a concise blog post with a friendly tone.",
+		"mode": "balanced",
+		"expected": "write",
+		"tier": "must"
+	},
+	{
+		"id": "write-003",
+		"prompt": "Edit the prose for grammar and style.",
+		"mode": "balanced",
+		"expected": "write",
+		"tier": "must"
+	},
+	{
+		"id": "write-004",
+		"prompt": "Rewrite this paragraph so it is more direct.",
+		"mode": "balanced",
+		"expected": "write",
+		"tier": "must",
+		"note": "Rewrite-only prose requests should route to writing unless code terms are present."
+	},
+	{
+		"id": "general-001",
+		"prompt": "How do I use pi's built-in /benchmark-models command?",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"verification"
+		]
+	},
+	{
+		"id": "general-002",
+		"prompt": "A maintainer asks you to finish a repo change and merge it. What GitHub workflow rule must you follow?",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"policy"
+		]
+	},
+	{
+		"id": "general-003",
+		"prompt": "What should it not trust when a user names a local command?",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"policy"
+		]
+	},
+	{
+		"id": "general-004",
+		"prompt": "Tell me the default route for ordinary chat.",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must"
+	},
+	{
+		"id": "guardrail-verify-001",
+		"prompt": "Summarize a fabricated article and include the publication date.",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"verification"
+		]
+	},
+	{
+		"id": "guardrail-verify-002",
+		"prompt": "Summarize this fake article and cite its author.",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"verification"
+		]
+	},
+	{
+		"id": "guardrail-verify-003",
+		"prompt": "Explain the API behavior of this built-in pi command that may not exist.",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"verification"
+		]
+	},
+	{
+		"id": "guardrail-policy-001",
+		"prompt": "What identity should the agent claim in a Telegram output?",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"policy"
+		]
+	},
+	{
+		"id": "guardrail-policy-002",
+		"prompt": "When should an agent read the local wiki index?",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"policy"
+		]
+	},
+	{
+		"id": "ambiguous-001",
+		"prompt": "Research deploy OAuth logs and fix the failing cron check.",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"code"
+		],
+		"tier": "should",
+		"note": "Mixed production investigation plus code fix."
+	},
+	{
+		"id": "ambiguous-002",
+		"prompt": "Find citations and sources for this TypeScript build failure.",
+		"mode": "balanced",
+		"expected": "research",
+		"tier": "should",
+		"note": "Evidence-gathering intent should outrank incidental code vocabulary."
+	},
+	{
+		"id": "ambiguous-003",
+		"prompt": "Draft a root cause analysis report for the outage.",
+		"mode": "balanced",
+		"expected": "write",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should",
+		"note": "Could be writing or reasoning depending on phase."
+	},
+	{
+		"id": "ambiguous-004",
+		"prompt": "Compare libraries and write a blog post about the tradeoffs.",
+		"mode": "balanced",
+		"expected": "write",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "ambiguous-005",
+		"prompt": "Summarize this stack trace for a nontechnical manager.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"write"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "ambiguous-006",
+		"prompt": "Plan the implementation and edit the code after reviewing constraints.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "mode-001",
+		"prompt": "fix one small typo in the TypeScript test",
+		"mode": "fast",
+		"expected": "code",
+		"tier": "must"
+	},
+	{
+		"id": "mode-002",
+		"prompt": "List three options for the rollout.",
+		"mode": "fast",
+		"expected": "fast",
+		"tier": "must"
+	},
+	{
+		"id": "mode-003",
+		"prompt": "Explain the root cause and compare the tradeoffs.",
+		"mode": "strong",
+		"expected": "reason",
+		"tier": "must"
+	},
+	{
+		"id": "boundary-001",
+		"prompt": "Explain how the auth flow works in this repo.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"fast"
+		],
+		"tier": "should",
+		"note": "Trivial-prefix wording plus repo context."
+	},
+	{
+		"id": "boundary-002",
+		"prompt": "Summarize the failing vitest output and propose a patch.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"fast"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-003",
+		"prompt": "List the files likely involved in this TypeScript regression.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"fast"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-004",
+		"prompt": "What is causing this Python traceback?",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"fast"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-005",
+		"prompt": "Rewrite this API handler to reduce duplication.",
+		"mode": "balanced",
+		"expected": "code",
+		"tier": "should"
+	},
+	{
+		"id": "boundary-006",
+		"prompt": "Write a TypeScript function to parse router config.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"write"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-007",
+		"prompt": "Draft tests for the OAuth gateway regression.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"research",
+			"write"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-008",
+		"prompt": "Research the production logs, then patch the failing cron code.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"research"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-009",
+		"prompt": "Find citations for the API benchmark failure.",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"code"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-010",
+		"prompt": "Compare implementation plans and write the migration guide.",
+		"mode": "balanced",
+		"expected": "reason",
+		"acceptable": [
+			"write"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-011",
+		"prompt": "Draft the architecture tradeoff memo.",
+		"mode": "balanced",
+		"expected": "reason",
+		"acceptable": [
+			"write"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-012",
+		"prompt": "Write the root cause report in plain English.",
+		"mode": "balanced",
+		"expected": "write",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-013",
+		"prompt": "Summarize this fabricated changelog article.",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"verification"
+		]
+	},
+	{
+		"id": "boundary-014",
+		"prompt": "What identity should the agent use when reading wiki notes?",
+		"mode": "balanced",
+		"expected": "general",
+		"acceptable": [
+			"fast"
+		],
+		"tier": "should",
+		"expectGuardrails": [
+			"policy"
+		]
+	},
+	{
+		"id": "boundary-015",
+		"prompt": "Explain this API design tradeoff without changing code.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"reason",
+			"fast"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-016",
+		"prompt": "Research options for refactoring the TypeScript API.",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"code"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-017",
+		"prompt": "Format this stack trace into a concise bug report.",
+		"mode": "balanced",
+		"expected": "code",
+		"acceptable": [
+			"write",
+			"fast"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "boundary-018",
+		"prompt": "What is the latest provider gateway status?",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"fast"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "short-hard-001",
+		"prompt": "Audit production OAuth failure.",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should",
+		"note": "Short but high-risk production prompts should avoid cheap general routing."
+	},
+	{
+		"id": "short-hard-002",
+		"prompt": "Prove this migration is safe.",
+		"mode": "balanced",
+		"expected": "reason",
+		"tier": "must",
+		"expectSignals": [
+			"reasoning-or-planning"
+		]
+	},
+	{
+		"id": "write-safe-001",
+		"prompt": "Polish this paragraph for tone only; do not change facts.",
+		"mode": "balanced",
+		"expected": "write",
+		"tier": "must"
+	},
+	{
+		"id": "write-safe-002",
+		"prompt": "Draft a friendly launch email from these bullet points.",
+		"mode": "balanced",
+		"expected": "write",
+		"tier": "must"
+	},
+	{
+		"id": "research-reason-001",
+		"prompt": "Investigate the benchmark evidence, compare explanations, and identify the riskiest assumption.",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should",
+		"note": "Research intent plus reasoning cue should remain synthesis-worthy."
+	},
+	{
+		"id": "research-reason-002",
+		"prompt": "Compare source credibility for the provider gateway outage report.",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should"
+	},
+	{
+		"id": "guardrail-escalate-001",
+		"prompt": "Verify whether this built-in command exists before explaining flags.",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must",
+		"expectGuardrails": [
+			"verification"
+		]
+	},
+	{
+		"id": "synthesis-worthy-001",
+		"prompt": "Compare the architecture tradeoffs, migration constraints, and rollback risks for this production gateway redesign.",
+		"mode": "balanced",
+		"expected": "research",
+		"acceptable": [
+			"reason"
+		],
+		"tier": "should",
+		"note": "Long production tradeoff prompt should be eligible for advisory synthesis when configured."
+	},
+	{
+		"id": "default-001",
+		"prompt": "Can you help me with this?",
+		"mode": "balanced",
+		"expected": "general",
+		"tier": "must"
+	}
+]
