@@ -27,7 +27,9 @@ export type RouterRuleId =
 	| "research-keywords"
 	| "reason-keywords"
 	| "write-keywords"
+	| "general-keywords"
 	| "balanced-trivial"
+	| "route-stickiness"
 	| "default-general";
 
 export interface RouterDecision {
@@ -49,6 +51,8 @@ export interface RouterFeatureMatch {
 
 interface RouterRouteCandidate extends RouterDecision {
 	selected: boolean;
+	score?: number;
+	margin?: number;
 }
 
 export interface RouterConfigDiagnostic {
@@ -124,6 +128,7 @@ interface RouterConfigFile {
 	requireOAuth?: boolean;
 	anchorModel?: string;
 	routes?: Partial<Record<RouterRoute, string | string[]>>;
+	extraKeywords?: Partial<Record<RouterRoute, string[]>>;
 	synthesis?: RouterSynthesisConfigFile;
 	costControls?: RouterCostControlsConfigFile;
 	toolProfiles?: Partial<Record<RouterRoute, string[]>>;
@@ -172,6 +177,7 @@ interface ResolvedRouterConfig {
 	requireOAuth: boolean;
 	anchorModel?: string;
 	routes: Record<RouterRoute, RouterModelSpec[]>;
+	extraKeywords: Partial<Record<RouterRoute, string[]>>;
 	synthesis: ResolvedRouterSynthesisConfig;
 	costControls: ResolvedRouterCostControls;
 	toolProfiles: Partial<Record<RouterRoute, string[]>>;
@@ -205,6 +211,7 @@ export type PanelRunner = (request: RouterPanelRequest) => Promise<RouterPanelRe
 interface RouterOptions {
 	panelRunner?: PanelRunner;
 	usageHistoryPath?: string;
+	misrouteHistoryPath?: string;
 	now?: () => Date;
 }
 
@@ -304,6 +311,22 @@ function addDiagnostic(
 
 function isRouterRoute(value: string): value is RouterRoute {
 	return (ROUTES as string[]).includes(value);
+}
+
+function isRouterRuleId(value: string): value is RouterRuleId {
+	return [
+		"fast-mode-trivial",
+		"verification-guard",
+		"policy-guard",
+		"code-keywords",
+		"research-keywords",
+		"reason-keywords",
+		"write-keywords",
+		"general-keywords",
+		"balanced-trivial",
+		"route-stickiness",
+		"default-general",
+	].includes(value);
 }
 
 export function parseModelSpec(value: string): RouterModelSpec | undefined {
@@ -417,6 +440,43 @@ function readCostControlsConfig(
 			);
 	}
 	return costControls;
+}
+
+function readExtraKeywordsConfig(
+	value: unknown,
+	diagnostics?: RouterConfigDiagnostic[],
+	path = "extraKeywords",
+): Partial<Record<RouterRoute, string[]>> | undefined {
+	if (value === undefined) return undefined;
+	if (!isRecord(value)) {
+		addDiagnostic(diagnostics, "warning", path, "Expected an object; extra keywords ignored.");
+		return undefined;
+	}
+	const extraKeywords: Partial<Record<RouterRoute, string[]>> = {};
+	for (const key of Object.keys(value)) {
+		if (!isRouterRoute(key)) {
+			addDiagnostic(diagnostics, "warning", `${path}.${key}`, "Unknown route; entry ignored.");
+			continue;
+		}
+		const keywords = value[key];
+		if (!Array.isArray(keywords)) {
+			addDiagnostic(diagnostics, "warning", `${path}.${key}`, "Expected a string array; entry ignored.");
+			continue;
+		}
+		const seen = new Set<string>();
+		extraKeywords[key] = keywords.filter((keyword, index): keyword is string => {
+			const ok = typeof keyword === "string" && Boolean(keyword.trim());
+			if (!ok) {
+				addDiagnostic(diagnostics, "warning", `${path}.${key}[${index}]`, "Expected a keyword string; entry ignored.");
+				return false;
+			}
+			const normalized = keyword.trim().toLowerCase();
+			if (seen.has(normalized)) return false;
+			seen.add(normalized);
+			return true;
+		});
+	}
+	return extraKeywords;
 }
 
 function readToolProfilesConfig(
@@ -553,6 +613,7 @@ function readConfigFileWithDiagnostics(filePath: string): {
 			"requireOAuth",
 			"anchorModel",
 			"routes",
+			"extraKeywords",
 			"synthesis",
 			"costControls",
 			"toolProfiles",
@@ -606,6 +667,7 @@ function readConfigFileWithDiagnostics(filePath: string): {
 					);
 			}
 		}
+		config.extraKeywords = readExtraKeywordsConfig(parsed.extraKeywords, diagnostics, `${filePath}.extraKeywords`);
 		config.synthesis = readSynthesisConfig(parsed.synthesis, diagnostics, `${filePath}.synthesis`);
 		config.costControls = readCostControlsConfig(parsed.costControls, diagnostics, `${filePath}.costControls`);
 		config.toolProfiles = readToolProfilesConfig(parsed.toolProfiles, diagnostics, `${filePath}.toolProfiles`);
@@ -735,6 +797,7 @@ export function resolveRouterConfig(cwd: string, homeDir = homedir()): ResolvedR
 			routes: { ...globalConfig.synthesis?.routes, ...projectConfig.synthesis?.routes },
 		},
 		costControls: { ...globalConfig.costControls, ...projectConfig.costControls },
+		extraKeywords: { ...globalConfig.extraKeywords, ...projectConfig.extraKeywords },
 		toolProfiles: { ...globalConfig.toolProfiles, ...projectConfig.toolProfiles },
 	};
 	const routes = Object.fromEntries(
@@ -760,6 +823,7 @@ export function resolveRouterConfig(cwd: string, homeDir = homedir()): ResolvedR
 		requireOAuth: merged.requireOAuth ?? DEFAULT_CONFIG.requireOAuth,
 		anchorModel: merged.anchorModel,
 		routes,
+		extraKeywords: merged.extraKeywords ?? {},
 		synthesis,
 		costControls,
 		toolProfiles: merged.toolProfiles ?? {},
@@ -771,18 +835,92 @@ const VERIFICATION_RE =
 	/\b(fake|fabricated|false premise|does not exist|built-in|publication date|summari[sz]e .*article|unverified)\b/;
 const POLICY_RE =
 	/\b(workflow rule|what identity|what should it not trust|when should an agent read|correct workflow)\b/;
-const CODE_RE =
-	/\b(inspect files?|edit code|run (npm test|make check|tests?)|refactor|debug|fix|test|typescript|python|javascript|repo|code|implement|function|class|api|failing|traceback|stack|git|pr\b|merge)\b/;
-const RESEARCH_RE =
-	/\b(research|sources?|citations?|evidence|benchmark|eval|novelty|detect|ingest|report pipeline|health report|deploy(?:ment)?|infra(?:structure)?|hosting|provider|production|cron|logs?|degraded|oauth|gateway)\b/;
-const REASON_RE = /\b(prove|derive|reason|tradeoff|architecture|plan|compare|optimi[sz]e|constraint|why|root cause)\b/;
-const WRITE_RE = /\b(write|rewrite|draft|edit|prose|copy|blog|article|report|tone|style|grammar)\b/;
+
+const FEATURE_TIE_BREAK_ORDER: RouterRoute[] = ["research", "code", "reason", "write", "fast", "general"];
+
+const ROUTE_FEATURES: Record<Exclude<RouterRoute, "general" | "fast">, RegExp[]> = {
+	code: [
+		/\binspect files?\b/,
+		/\bedit code\b/,
+		/\brun (?:npm test|make check|tests?)\b/,
+		/\b(refactor|debug|fix|test|typescript|python|javascript|repo|code|implement|function|class|api|failing|traceback|stack|git|pr\b|merge|patch|rename)\b/,
+	],
+	research: [
+		/\b(research|sources?|citations?|evidence|benchmark|eval|novelty|detect|ingest)\b/,
+		/\b(?:analytics )?report pipeline\b/,
+		/\bhealth report\b/,
+		/\b(deploy(?:ment)?|infra(?:structure)?|hosting|provider|production|cron|logs?|degraded|oauth|gateway)\b/,
+	],
+	reason: [
+		/\b(prove|derive|reason|tradeoffs?|architecture|plan|compare|optimi[sz]e|constraints?|why|root cause|assumption|migration|risk|rollback)\b/,
+	],
+	write: [/\b(write|rewrite|draft|edit|prose|copy|blog|article|report|tone|style|grammar|paragraph|concise)\b/],
+};
+
+const ROUTE_BASE_SCORE: Record<RouterRoute, number> = {
+	fast: 46,
+	code: 54,
+	reason: 52,
+	write: 50,
+	research: 56,
+	general: 1,
+};
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function keywordPattern(keyword: string): RegExp | undefined {
+	const trimmed = keyword.trim();
+	if (!trimmed) return undefined;
+	const startsWord = /^[a-z0-9_]/i.test(trimmed);
+	const endsWord = /[a-z0-9_]$/i.test(trimmed);
+	return new RegExp(`${startsWord ? "\\b" : ""}${escapeRegExp(trimmed)}${endsWord ? "\\b" : ""}`, "i");
+}
+
+function extraKeywordMatches(
+	text: string,
+	route: RouterRoute,
+	extraKeywords: Partial<Record<RouterRoute, string[]>> = {},
+): string[] {
+	return (extraKeywords[route] ?? []).filter((keyword) => keywordPattern(keyword)?.test(text));
+}
+
+function extraKeywordSignals(matches: string[]): string[] {
+	return matches.map((keyword) => `extra:${keyword.trim()}`);
+}
+
+function patternHits(text: string, patterns: RegExp[]): number {
+	return patterns.filter((pattern) => pattern.test(text)).length;
+}
 
 function looksTrivial(prompt: string): boolean {
 	return (
-		prompt.length < 180 &&
-		/^(hi|hello|thanks|ok|yes|no|summari[sz]e|rewrite|format|explain|what is|who is|list)\b/i.test(prompt.trim())
+		prompt.length < 220 &&
+		/^(hi|hello|thanks|ok|okay|yes|no|summari[sz]e|rewrite|format|explain|what is|what are|what does|who is|define|list|convert|translate|show me|give me|quick(?:ly)?\b|small\b)/i.test(
+			prompt.trim(),
+		)
 	);
+}
+
+function isShortFollowup(prompt: string): boolean {
+	return (
+		prompt.trim().length < 100 &&
+		/^(yes|yeah|yep|ok|okay|continue|same\b|same but|do that|go on|keep going|try again|make it|and now|now do|faster|slower|more concise|expand)\b/i.test(
+			prompt.trim(),
+		)
+	);
+}
+
+function scoreConfidence(score: number): number {
+	return Math.max(0.55, Math.min(0.94, Number((0.52 + score / 230).toFixed(3))));
+}
+
+function marginConfidence(score: number, runnerUpScore: number | undefined, guardrails?: RouterGuardrail[]): number {
+	if (guardrails?.length) return 0.95;
+	if (runnerUpScore === undefined) return Math.max(0.76, scoreConfidence(score));
+	const margin = Math.max(0, score - runnerUpScore);
+	return Math.max(0.56, Math.min(0.97, Number((0.55 + score / 400 + margin / 100).toFixed(3))));
 }
 
 function routeDecision(
@@ -805,26 +943,95 @@ function routeCandidate(
 	confidence: number,
 	guardrails?: RouterGuardrail[],
 	rule?: RouterRuleId,
+	score?: number,
 ): RouterRouteCandidate {
-	return { ...routeDecision(route, thinkingLevel, reason, signals, confidence, guardrails, rule), selected: false };
+	return {
+		...routeDecision(route, thinkingLevel, reason, signals, confidence, guardrails, rule),
+		score,
+		selected: false,
+	};
 }
 
-export function explainRouteCandidates(prompt: string, mode: RouterMode = "balanced"): RouterRouteCandidate[] {
+function featureCandidate(
+	route: Exclude<RouterRoute, "general" | "fast">,
+	text: string,
+	mode: RouterMode,
+	extraMatches: string[],
+): RouterRouteCandidate | undefined {
+	const hits = patternHits(text, ROUTE_FEATURES[route]);
+	if (!hits && !extraMatches.length) return undefined;
+	let score = ROUTE_BASE_SCORE[route] + hits * 9 + extraMatches.length * 12;
+	if (
+		route === "research" &&
+		/\b(citations?|sources?|evidence|benchmark|production|logs?|deploy|gateway)\b/.test(text)
+	) {
+		score += 8;
+	}
+	if (route === "research" && /\b(draft|write|rewrite)\b/.test(text)) score -= 18;
+	if (route === "code" && /\b(failing|fix|debug|traceback|stack|test|repo|patch|implementation)\b/.test(text))
+		score += 7;
+	if (route === "code" && /\b(api handler|handler|reduce duplication|deduplicate)\b/.test(text)) score += 10;
+	if (route === "write" && /\b(draft|write|rewrite|blog|article|prose|tone|style|grammar|paragraph)\b/.test(text))
+		score += 7;
+	if (route === "reason" && /\b(compare|tradeoffs?|constraints?|architecture|root cause|why|risk|plan)\b/.test(text))
+		score += 6;
+	return routeCandidate(
+		route,
+		mode === "fast" && route !== "write" ? "medium" : route === "write" ? "medium" : "high",
+		route === "research"
+			? "research/production evidence task"
+			: route === "code"
+				? "coding task"
+				: route === "reason"
+					? "reasoning/planning task"
+					: "writing task",
+		[
+			route === "research"
+				? "research-or-production"
+				: route === "code"
+					? "code-or-repo"
+					: route === "reason"
+						? "reasoning-or-planning"
+						: "writing-or-editing",
+			...extraKeywordSignals(extraMatches),
+		],
+		scoreConfidence(score),
+		undefined,
+		`${route}-keywords` as RouterRuleId,
+		score,
+	);
+}
+
+function sortAndCalibrateCandidates(candidates: RouterRouteCandidate[]): RouterRouteCandidate[] {
+	const sorted = [...candidates].sort((a, b) => {
+		const scoreDelta = (b.score ?? 0) - (a.score ?? 0);
+		if (scoreDelta !== 0) return scoreDelta;
+		return FEATURE_TIE_BREAK_ORDER.indexOf(a.route) - FEATURE_TIE_BREAK_ORDER.indexOf(b.route);
+	});
+	return sorted.map((candidate, index) => {
+		const runnerUp = index === 0 ? sorted.find((other) => other.route !== candidate.route) : undefined;
+		const confidence =
+			candidate.rule === "default-general" && !runnerUp
+				? (candidate.confidence ?? 0.55)
+				: index === 0
+					? marginConfidence(candidate.score ?? 0, runnerUp?.score, candidate.guardrails)
+					: scoreConfidence(candidate.score ?? 0);
+		return {
+			...candidate,
+			confidence,
+			margin: runnerUp ? (candidate.score ?? 0) - (runnerUp.score ?? 0) : undefined,
+			selected: index === 0,
+		};
+	});
+}
+
+export function explainRouteCandidates(
+	prompt: string,
+	mode: RouterMode = "balanced",
+	extraKeywords: Partial<Record<RouterRoute, string[]>> = {},
+): RouterRouteCandidate[] {
 	const text = prompt.toLowerCase();
 	const candidates: RouterRouteCandidate[] = [];
-	if (mode === "fast" && looksTrivial(prompt)) {
-		candidates.push(
-			routeCandidate(
-				"fast",
-				"minimal",
-				"short simple prompt",
-				["fast-mode", "trivial-prompt"],
-				0.9,
-				undefined,
-				"fast-mode-trivial",
-			),
-		);
-	}
 	if (VERIFICATION_RE.test(text)) {
 		candidates.push(
 			routeCandidate(
@@ -835,6 +1042,7 @@ export function explainRouteCandidates(prompt: string, mode: RouterMode = "balan
 				0.95,
 				["verification"],
 				"verification-guard",
+				120,
 			),
 		);
 	}
@@ -848,68 +1056,71 @@ export function explainRouteCandidates(prompt: string, mode: RouterMode = "balan
 				0.95,
 				["policy"],
 				"policy-guard",
+				118,
 			),
 		);
 	}
-	if (RESEARCH_RE.test(text)) {
+	for (const route of ["research", "code", "reason", "write"] as const) {
+		const candidate = featureCandidate(route, text, mode, extraKeywordMatches(text, route, extraKeywords));
+		if (candidate) candidates.push(candidate);
+	}
+	const fastExtra = extraKeywordMatches(text, "fast", extraKeywords);
+	if (mode === "fast" && looksTrivial(prompt)) {
 		candidates.push(
 			routeCandidate(
-				"research",
-				mode === "fast" ? "medium" : "high",
-				"research/production evidence task",
-				["research-or-production"],
+				"fast",
+				"minimal",
+				"short simple prompt",
+				["fast-mode", "trivial-prompt", ...extraKeywordSignals(fastExtra)],
+				0.9,
+				undefined,
+				"fast-mode-trivial",
+				82 + fastExtra.length * 12,
+			),
+		);
+	} else if (looksTrivial(prompt) || fastExtra.length) {
+		candidates.push(
+			routeCandidate(
+				"fast",
+				"minimal",
+				fastExtra.length ? "configured fast keyword" : "short simple prompt",
+				[...(looksTrivial(prompt) ? ["trivial-prompt"] : []), ...extraKeywordSignals(fastExtra)],
 				0.85,
 				undefined,
-				"research-keywords",
+				"balanced-trivial",
+				ROUTE_BASE_SCORE.fast + (looksTrivial(prompt) ? 18 : 0) + fastExtra.length * 12,
 			),
 		);
 	}
-	if (CODE_RE.test(text)) {
+	const generalExtra = extraKeywordMatches(text, "general", extraKeywords);
+	if (generalExtra.length) {
 		candidates.push(
 			routeCandidate(
-				"code",
-				mode === "fast" ? "medium" : "high",
-				"coding task",
-				["code-or-repo"],
-				0.85,
-				undefined,
-				"code-keywords",
-			),
-		);
-	}
-	if (REASON_RE.test(text)) {
-		candidates.push(
-			routeCandidate(
-				"reason",
-				mode === "fast" ? "medium" : "high",
-				"reasoning/planning task",
-				["reasoning-or-planning"],
+				"general",
+				"medium",
+				"configured general keyword",
+				extraKeywordSignals(generalExtra),
 				0.8,
 				undefined,
-				"reason-keywords",
+				"general-keywords",
+				50 + generalExtra.length * 12,
 			),
-		);
-	}
-	if (WRITE_RE.test(text)) {
-		candidates.push(
-			routeCandidate("write", "medium", "writing task", ["writing-or-editing"], 0.8, undefined, "write-keywords"),
-		);
-	}
-	if (looksTrivial(prompt)) {
-		candidates.push(
-			routeCandidate("fast", "minimal", "short simple prompt", ["trivial-prompt"], 0.85, undefined, "balanced-trivial"),
 		);
 	}
 	if (!candidates.length) {
 		candidates.push(
-			routeCandidate("general", "medium", "general task", ["default-general"], 0.55, undefined, "default-general"),
+			routeCandidate("general", "medium", "general task", ["default-general"], 0.55, undefined, "default-general", 1),
 		);
 	}
-	return candidates.map((candidate, index) => ({ ...candidate, selected: index === 0 }));
+	return sortAndCalibrateCandidates(candidates);
 }
 
-export function findRouteFeatureMatches(prompt: string, mode: RouterMode = "balanced"): RouterFeatureMatch[] {
-	return explainRouteCandidates(prompt, mode)
+export function findRouteFeatureMatches(
+	prompt: string,
+	mode: RouterMode = "balanced",
+	extraKeywords: Partial<Record<RouterRoute, string[]>> = {},
+): RouterFeatureMatch[] {
+	return explainRouteCandidates(prompt, mode, extraKeywords)
 		.filter((candidate) => candidate.rule !== "default-general")
 		.map((candidate) => ({
 			guardrails: candidate.guardrails,
@@ -919,13 +1130,54 @@ export function findRouteFeatureMatches(prompt: string, mode: RouterMode = "bala
 		}));
 }
 
-export function analyzePrompt(prompt: string, mode: RouterMode = "balanced"): RouterDecision {
-	const { selected: _selected, ...decision } = explainRouteCandidates(prompt, mode)[0];
-	return decision;
+function stickyDecision(
+	prompt: string,
+	selected: RouterDecision,
+	previousDecision?: RouterDecision,
+): RouterDecision | undefined {
+	if (!previousDecision || !isShortFollowup(prompt)) return undefined;
+	if (selected.rule && !["default-general", "balanced-trivial", "fast-mode-trivial"].includes(selected.rule))
+		return undefined;
+	const faster = /\b(faster|quick|quickly)\b/i.test(prompt);
+	const slower = /\b(slower|careful|carefully|deeper|expand)\b/i.test(prompt);
+	const thinkingLevel = faster
+		? minThinking(previousDecision.thinkingLevel, "low")
+		: slower
+			? maxThinking(previousDecision.thinkingLevel, "high")
+			: previousDecision.thinkingLevel;
+	return routeDecision(
+		previousDecision.route,
+		thinkingLevel,
+		"short follow-up inherits previous route",
+		["route-stickiness", ...(faster ? ["faster-followup"] : []), ...(slower ? ["deeper-followup"] : [])],
+		0.78,
+		previousDecision.guardrails,
+		"route-stickiness",
+	);
 }
 
-export function classifyPrompt(prompt: string, mode: RouterMode = "balanced"): RouterDecision {
-	return analyzePrompt(prompt, mode);
+export function analyzePrompt(
+	prompt: string,
+	mode: RouterMode = "balanced",
+	extraKeywords: Partial<Record<RouterRoute, string[]>> = {},
+	previousDecision?: RouterDecision,
+): RouterDecision {
+	const {
+		selected: _selected,
+		score: _score,
+		margin: _margin,
+		...decision
+	} = explainRouteCandidates(prompt, mode, extraKeywords)[0];
+	return stickyDecision(prompt, decision, previousDecision) ?? decision;
+}
+
+export function classifyPrompt(
+	prompt: string,
+	mode: RouterMode = "balanced",
+	extraKeywords: Partial<Record<RouterRoute, string[]>> = {},
+	previousDecision?: RouterDecision,
+): RouterDecision {
+	return analyzePrompt(prompt, mode, extraKeywords, previousDecision);
 }
 
 const THINKING_ORDER: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
@@ -942,11 +1194,22 @@ function maxThinking(a: ThinkingLevel, b: ThinkingLevel): ThinkingLevel {
 	return thinkingRank(a) >= thinkingRank(b) ? a : b;
 }
 
+function looksLowRiskCodePrompt(prompt: string): boolean {
+	const text = prompt.toLowerCase();
+	return (
+		text.length < 240 &&
+		/\b(one[- ]line|small|simple|rename|format|typo|lint|comment|docs?|import|quick fix)\b/.test(text) &&
+		!/\b(failing tests?|debug|traceback|stack|production|security|migration|architecture|regression|incident|root cause)\b/.test(
+			text,
+		)
+	);
+}
+
 export function shouldEscalateThinking(prompt: string, decision: RouterDecision): boolean {
 	const text = prompt.toLowerCase();
 	return Boolean(
 		decision.guardrails?.length ||
-			decision.route === "code" ||
+			(decision.route === "code" && !looksLowRiskCodePrompt(prompt)) ||
 			decision.route === "reason" ||
 			decision.route === "research" ||
 			/\b(think hard|think deeply|carefully|verify|audit|security|production|incident|root cause|architecture|design tradeoffs?|debug|failing tests?|regression)\b/.test(
@@ -966,8 +1229,14 @@ export function applyCostControlledThinking(
 	if (costControls.maxDefaultThinking && !shouldEscalateThinking(prompt, decision)) {
 		level = minThinking(level, costControls.maxDefaultThinking);
 	}
+	if (decision.route === "code" && looksLowRiskCodePrompt(prompt)) {
+		level = minThinking(level, "medium");
+	}
 	if (shouldEscalateThinking(prompt, decision)) {
 		level = maxThinking(level, decision.thinkingLevel);
+	}
+	if (decision.rule === "route-stickiness" && decision.signals?.includes("faster-followup")) {
+		level = minThinking(level, decision.thinkingLevel);
 	}
 	return level;
 }
@@ -1092,7 +1361,7 @@ export function shouldRunSynthesis(
 	if ((gate.turnsSinceSynthesis ?? Number.POSITIVE_INFINITY) < controls.synthesisCooldownTurns) return undefined;
 	if (controls.synthesisMinConfidence !== undefined && (decision.confidence ?? 0) < controls.synthesisMinConfidence)
 		return undefined;
-	const routeMatches = findRouteFeatureMatches(prompt).map((match) => match.route);
+	const routeMatches = findRouteFeatureMatches(prompt, config.mode, config.extraKeywords).map((match) => match.route);
 	const collision = new Set(routeMatches).size > 1;
 	if (controls.synthesisOnCollision && collision) return spec;
 	if (controls.synthesisRequireDeepCue && !hasSynthesisDeepCue(prompt)) return undefined;
@@ -1278,14 +1547,33 @@ interface RouterCostEvent extends RouterUsageTotals {
 	route?: RouterRoute;
 	model?: string;
 	thinkingLevel?: ThinkingLevel;
+	rule?: RouterRuleId;
+	confidence?: number;
+	sessionId?: string;
 	cacheHitRate: number;
 }
 
 interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 	timestamp: string;
+	sessionId?: string;
+	kind?: "turn" | "panel";
 	route?: RouterRoute;
 	model?: string;
 	thinkingLevel?: ThinkingLevel;
+	rule?: RouterRuleId;
+	confidence?: number;
+	panelOk?: boolean;
+	panelLatencyMs?: number;
+}
+
+interface RouterMisrouteRecord {
+	timestamp: string;
+	sessionId: string;
+	prompt: string;
+	wrongRoute?: RouterRoute;
+	correctRoute: RouterRoute;
+	rule?: RouterRuleId;
+	confidence?: number;
 }
 
 interface RouterBudgetStatus {
@@ -1302,8 +1590,12 @@ function emptyUsageTotals(): RouterUsageTotals {
 	return { turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, costTotal: 0 };
 }
 
-function addUsageTotals(total: RouterUsageTotals, usage: Partial<Omit<RouterUsageTotals, "turns">>): void {
-	total.turns += 1;
+function addUsageTotals(
+	total: RouterUsageTotals,
+	usage: Partial<Omit<RouterUsageTotals, "turns">>,
+	countTurn = true,
+): void {
+	if (countTurn) total.turns += 1;
 	total.input += usage.input ?? 0;
 	total.output += usage.output ?? 0;
 	total.cacheRead += usage.cacheRead ?? 0;
@@ -1329,8 +1621,12 @@ function usageHistoryPath(homeDir = homedir()): string {
 	return join(homeDir, ".pi", "agent", "extensions", "router-usage.jsonl");
 }
 
+function misrouteHistoryPath(homeDir = homedir()): string {
+	return join(homeDir, ".pi", "agent", "extensions", "misroutes.jsonl");
+}
+
 function addRecordToTotals(total: RouterUsageTotals, record: RouterUsageRecord): void {
-	addUsageTotals(total, record);
+	addUsageTotals(total, record, record.kind !== "panel");
 }
 
 function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
@@ -1339,9 +1635,15 @@ function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
 		if (!isRecord(parsed) || typeof parsed.timestamp !== "string") return undefined;
 		return {
 			timestamp: parsed.timestamp,
+			sessionId: typeof parsed.sessionId === "string" ? parsed.sessionId : undefined,
+			kind: parsed.kind === "panel" ? "panel" : parsed.kind === "turn" ? "turn" : undefined,
 			route: typeof parsed.route === "string" && isRouterRoute(parsed.route) ? parsed.route : undefined,
 			model: typeof parsed.model === "string" ? parsed.model : undefined,
 			thinkingLevel: normalizeThinkingLevel(parsed.thinkingLevel),
+			rule: typeof parsed.rule === "string" && isRouterRuleId(parsed.rule) ? parsed.rule : undefined,
+			confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : undefined,
+			panelOk: typeof parsed.panelOk === "boolean" ? parsed.panelOk : undefined,
+			panelLatencyMs: typeof parsed.panelLatencyMs === "number" ? parsed.panelLatencyMs : undefined,
 			input: typeof parsed.input === "number" ? parsed.input : 0,
 			output: typeof parsed.output === "number" ? parsed.output : 0,
 			cacheRead: typeof parsed.cacheRead === "number" ? parsed.cacheRead : 0,
@@ -1377,6 +1679,19 @@ function appendUsageHistory(filePath: string, records: RouterUsageRecord[]): boo
 	} catch (error) {
 		console.warn(
 			`[router] Failed to append usage history ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		return false;
+	}
+}
+
+function appendMisrouteHistory(filePath: string, record: RouterMisrouteRecord): boolean {
+	try {
+		mkdirSync(dirname(filePath), { recursive: true });
+		appendFileSync(filePath, `${JSON.stringify(record)}\n`, "utf-8");
+		return true;
+	} catch (error) {
+		console.warn(
+			`[router] Failed to append misroute history ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
 		);
 		return false;
 	}
@@ -1420,8 +1735,11 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 	const panelRunner = options.panelRunner ?? runSubprocessPanel;
 	const now = options.now ?? (() => new Date());
 	const historyPath = options.usageHistoryPath ?? usageHistoryPath();
+	const misroutePath = options.misrouteHistoryPath ?? misrouteHistoryPath();
+	const sessionId = `router-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 	let lastDecision: RouterTelemetry | undefined;
 	let activeTurnDecision: RouterTelemetry | undefined;
+	let lastPrompt: string | undefined;
 	const usageTotals = emptyUsageTotals();
 	const usageByRoute = new Map<RouterRoute, RouterUsageTotals>();
 	const usageByModel = new Map<string, RouterUsageTotals>();
@@ -1614,9 +1932,13 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		}
 		pendingUsageRecords.push({
 			timestamp: now().toISOString(),
+			sessionId,
+			kind: "turn",
 			route: activeTurnDecision?.route,
 			model,
 			thinkingLevel: activeTurnDecision?.thinkingLevel,
+			rule: activeTurnDecision?.rule,
+			confidence: activeTurnDecision?.confidence,
 			...usageDelta,
 		});
 		if (cachedConfig) emitBudgetAlert(cachedConfig);
@@ -1625,6 +1947,9 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			route: activeTurnDecision?.route,
 			model,
 			thinkingLevel: activeTurnDecision?.thinkingLevel,
+			rule: activeTurnDecision?.rule,
+			confidence: activeTurnDecision?.confidence,
+			sessionId,
 			cacheHitRate: cacheHitRate(usageTotals),
 		};
 	}
@@ -1663,7 +1988,9 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			return;
 		}
 		turnCounter += 1;
-		const decision = classifyPrompt(event.prompt, state.mode);
+		lastPrompt = event.prompt;
+		const previousDecision = lastDecision?.active ? lastDecision : undefined;
+		const decision = classifyPrompt(event.prompt, state.mode, config.extraKeywords, previousDecision);
 		const candidates = config.routes[decision.route];
 		const { model, spec, fallbackReason } = findAvailableModel(
 			ctx,
@@ -1738,6 +2065,26 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				ctx.ui.setStatus("pi-router", undefined);
 			}
 			const panelLatencyMs = Date.now() - started;
+			for (const result of results) {
+				pendingUsageRecords.push({
+					timestamp: now().toISOString(),
+					sessionId,
+					kind: "panel",
+					route: decision.route,
+					model: result.model,
+					thinkingLevel,
+					rule: decision.rule,
+					confidence: decision.confidence,
+					panelOk: result.ok,
+					panelLatencyMs: result.latencyMs,
+					input: 0,
+					output: 0,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: 0,
+					costTotal: 0,
+				});
+			}
 			const okCount = results.filter((result) => result.ok).length;
 			const failCount = results.length - okCount;
 			const panelEvent = {
@@ -1774,7 +2121,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 
 	pi.registerCommand(ROUTER_COMMAND, {
 		description:
-			"Inspect or control model routing: status | cost [history] | doctor | smoke | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+			"Inspect or control model routing: status | cost [history|daily] | label <route> | doctor | smoke | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			const config = refreshConfig(ctx);
 			const [first, second, ...rest] = args.trim().split(/\s+/).filter(Boolean);
@@ -1822,7 +2169,41 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					);
 					return;
 				}
+				if (second === "daily") {
+					const records = historyRecordsWithPending();
+					ctx.ui.notify(["Router daily cost", ...usageHistorySummary(records, now(), 14)].join("\n"), "info");
+					return;
+				}
 				ctx.ui.notify(costSummaryLines(ctx).join("\n"), "info");
+				return;
+			}
+			if (first === "label") {
+				if (!second || !isRouterRoute(second)) {
+					ctx.ui.notify("Usage: /router label <fast|code|reason|write|research|general>", "warning");
+					return;
+				}
+				if (!lastDecision?.active || !lastPrompt) {
+					ctx.ui.notify("No active router decision is available to label yet.", "warning");
+					return;
+				}
+				const correctRoute = second;
+				const record: RouterMisrouteRecord = {
+					timestamp: now().toISOString(),
+					sessionId,
+					prompt: lastPrompt,
+					wrongRoute: lastDecision.route,
+					correctRoute,
+					rule: lastDecision.rule,
+					confidence: lastDecision.confidence,
+				};
+				if (appendMisrouteHistory(misroutePath, record)) {
+					ctx.ui.notify(
+						`Recorded misroute label: ${lastDecision.route} -> ${correctRoute}. Prompt stored locally at ${misroutePath}.`,
+						"info",
+					);
+				} else {
+					ctx.ui.notify(`Failed to record misroute label at ${misroutePath}.`, "warning");
+				}
 				return;
 			}
 			if (first === "doctor") {
@@ -1836,7 +2217,13 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					`CLAUDE_BIN: ${process.env.CLAUDE_BIN ?? "claude"} -> ${commandAvailability(process.env.CLAUDE_BIN ?? "claude")}`,
 					`PI_CACHE_RETENTION: ${process.env.PI_CACHE_RETENTION ?? "unset"}`,
 					`Cost controls: ${config.costControls.enabled ? "enabled" : "disabled"}; preferCache=${config.costControls.preferCache}; persistHistory=${config.costControls.persistHistory}; maxDefaultThinking=${config.costControls.maxDefaultThinking ?? "none"}; synthesisMinPromptChars=${config.costControls.synthesisMinPromptChars ?? "default"}; synthesisMinConfidence=${config.costControls.synthesisMinConfidence ?? "none"}`,
+					`Extra keywords: ${
+						Object.entries(config.extraKeywords)
+							.flatMap(([route, keywords]) => (keywords ?? []).map((keyword) => `${route}:${keyword}`))
+							.join(",") || "none"
+					}`,
 					`Usage history: ${historyPath}`,
+					`Misroute labels: ${misroutePath}`,
 					contextUsageSummary(ctx),
 					formatUsageTotals("Cost", usageTotals),
 					formatBudgetStatus(config),
@@ -1892,13 +2279,15 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			}
 			if (first === "route") {
 				const text = [second, ...rest].filter(Boolean).join(" ");
-				const decision = classifyPrompt(text, state.mode);
+				const decision = classifyPrompt(text, state.mode, config.extraKeywords);
 				const panelSpec = shouldRunSynthesis(decision, config, text, {
 					budgetOver: budgetStatus(config).overBudget,
 					turnsSinceSynthesis: turnCounter - lastSynthesisTurn,
 					synthesisRuns,
 				});
-				const collisions = [...new Set(findRouteFeatureMatches(text).map((match) => match.route))];
+				const collisions = [
+					...new Set(findRouteFeatureMatches(text, state.mode, config.extraKeywords).map((match) => match.route)),
+				];
 				ctx.ui.notify(
 					`Route: ${decision.route}; thinking=${decision.thinkingLevel}; confidence=${decision.confidence === undefined ? "n/a" : `${Math.round(decision.confidence * 100)}%`}; rule=${decision.rule ?? "unknown"}; signals=${decision.signals?.join(",") || "none"}; collisions=${collisions.join(",") || "none"}; synthesis=${panelSpec ? panelSpec.models.map(modelSpecKey).join(",") : "off"}; reason=${decision.reason}`,
 					"info",
@@ -1936,7 +2325,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				return;
 			}
 			ctx.ui.notify(
-				"Usage: /router status | cost [history] | doctor | smoke | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+				"Usage: /router status | cost [history|daily] | label <route> | doctor | smoke | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 				"warning",
 			);
 		},
@@ -1986,4 +2375,5 @@ export const _test = {
 	shouldRunSynthesis,
 	usageHistorySummary,
 	usageHistoryPath,
+	misrouteHistoryPath,
 };

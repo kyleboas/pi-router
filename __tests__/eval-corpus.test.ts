@@ -46,6 +46,7 @@ const RULES = new Set<string>([
 	"default-general",
 ] satisfies RouterRuleId[]);
 const MAX_KNOWN_GAPS = 2;
+const MAX_HARMFUL_COLLISIONS = 16;
 
 function corpusPath(): string {
 	return join(dirname(fileURLToPath(import.meta.url)), "..", "eval", "corpus.json");
@@ -363,6 +364,8 @@ describe("router eval corpus", () => {
 		};
 
 		expect(collisions.length).toBeGreaterThan(0);
+		expect(winnerWrongCount).toBe(0);
+		expect(harmfulCollisionCount).toBeLessThanOrEqual(MAX_HARMFUL_COLLISIONS);
 		expect(collisions.find((collision) => collision.id === "ambiguous-002")?.harm).toBe("harmful-near-miss");
 		await expect(`${JSON.stringify(report, null, 2)}\n`).toMatchFileSnapshot("../eval/collision.report.json");
 	});

@@ -110,6 +110,30 @@ describe("router helpers", () => {
 		).toMatchObject({ route: "general", thinkingLevel: "medium" });
 	});
 
+	it("scores ambiguous routes and supports sticky follow-ups", () => {
+		expect(classifyPrompt("Find citations and sources for this TypeScript build failure.")).toMatchObject({
+			route: "research",
+			rule: "research-keywords",
+		});
+		expect(classifyPrompt("Rewrite this API handler to reduce duplication.")).toMatchObject({
+			route: "code",
+			rule: "code-keywords",
+		});
+		const previous = classifyPrompt("fix the failing TypeScript tests");
+		expect(classifyPrompt("continue", "balanced", {}, previous)).toMatchObject({
+			route: "code",
+			rule: "route-stickiness",
+		});
+	});
+
+	it("de-escalates short low-risk code prompts", () => {
+		const decision = classifyPrompt("Please make a one-line rename in this helper function.");
+		expect(decision.route).toBe("code");
+		expect(
+			_test.applyCostControlledThinking("Please make a one-line rename in this helper function.", decision, "high"),
+		).toBe("medium");
+	});
+
 	it("prefers project config over global config", () => {
 		const { cwd, home, cleanup } = tempWorkspace();
 		try {
@@ -122,6 +146,30 @@ describe("router helpers", () => {
 			expect(config.active).toBe(false);
 			expect(config.mode).toBe("fast");
 			expect(config.configPath).toBe(paths.projectConfigPath);
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("routes configured extra keywords without changing default classification", () => {
+		const { cwd, home, cleanup } = tempWorkspace();
+		try {
+			const paths = _test.getConfigPaths(cwd, home);
+			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+			writeFileSync(
+				paths.projectConfigPath,
+				JSON.stringify({ extraKeywords: { research: ["railway"], nope: ["ignored"], code: [1] } }),
+			);
+			const config = resolveRouterConfig(cwd, home);
+			expect(classifyPrompt("railway queue", "balanced")).toMatchObject({ route: "general" });
+			expect(classifyPrompt("railway queue", "balanced", config.extraKeywords)).toMatchObject({
+				route: "research",
+				signals: expect.arrayContaining(["extra:railway"]),
+			});
+			expect(config.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toContain("Unknown route");
+			expect(config.diagnostics.map((diagnostic) => diagnostic.message).join("\n")).toContain(
+				"Expected a keyword string",
+			);
 		} finally {
 			cleanup();
 		}
@@ -256,7 +304,7 @@ describe("router extension", () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
 			const { pi, handlers, events } = mockPi(true);
-			piRouter(pi);
+			piRouter(pi, { usageHistoryPath: join(cwd, "router-usage.jsonl") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -310,7 +358,7 @@ describe("router extension", () => {
 		}
 	});
 
-	it("persists aggregate usage history and reports history", async () => {
+	it("persists enriched aggregate usage history and reports history", async () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
 			const historyPath = join(cwd, "router-usage.jsonl");
@@ -335,9 +383,55 @@ describe("router extension", () => {
 				ctx,
 			);
 			handlers.get("agent_end")?.({ type: "agent_end", messages: [] }, ctx);
-			expect(readFileSync(historyPath, "utf-8")).toContain('"route":"write"');
+			const record = JSON.parse(readFileSync(historyPath, "utf-8").trim());
+			expect(record).toMatchObject({ route: "write", rule: "write-keywords", confidence: expect.any(Number) });
+			expect(record.sessionId).toEqual(expect.any(String));
 			await commands.get(_test.ROUTER_COMMAND)?.handler("cost history", ctx as never);
 			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("2026-06-28"), "info");
+			await commands.get(_test.ROUTER_COMMAND)?.handler("cost daily", ctx as never);
+			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Router daily cost"), "info");
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("excludes panel records from history turn counts", () => {
+		const base = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, costTotal: 0 };
+		const lines = _test.usageHistorySummary(
+			[
+				{ timestamp: "2026-06-28T12:00:00.000Z", kind: "turn", ...base, input: 10, totalTokens: 10 },
+				{ timestamp: "2026-06-28T12:00:05.000Z", kind: "panel", ...base },
+				{ timestamp: "2026-06-28T12:00:06.000Z", kind: "panel", ...base },
+			],
+			new Date("2026-06-28T13:00:00.000Z"),
+		);
+		expect(lines.join("\n")).toContain("turns=1");
+	});
+
+	it("records opt-in misroute labels with prompt text", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const misroutePath = join(cwd, "misroutes.jsonl");
+			const { pi, handlers, commands } = mockPi(true);
+			piRouter(pi, {
+				misrouteHistoryPath: misroutePath,
+				now: () => new Date("2026-06-28T12:00:00.000Z"),
+			});
+			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
+			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "write this in a cleaner style", systemPrompt: "base" },
+				ctx,
+			);
+			await commands.get(_test.ROUTER_COMMAND)?.handler("label code", ctx as never);
+			const record = JSON.parse(readFileSync(misroutePath, "utf-8").trim());
+			expect(record).toMatchObject({
+				prompt: "write this in a cleaner style",
+				wrongRoute: "write",
+				correctRoute: "code",
+				rule: "write-keywords",
+			});
+			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Prompt stored locally"), "info");
 		} finally {
 			cleanup();
 		}
@@ -502,7 +596,7 @@ describe("router extension", () => {
 			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
 			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: true }));
 			const { pi, handlers, commands } = mockPi(false);
-			piRouter(pi);
+			piRouter(pi, { usageHistoryPath: join(cwd, "router-usage.jsonl") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await commands.get(_test.ROUTER_COMMAND)?.handler("effort general high", ctx as never);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
@@ -534,6 +628,7 @@ describe("router extension", () => {
 				}),
 			);
 			const { pi, handlers, events } = mockPi(false);
+			const historyPath = join(cwd, "router-usage.jsonl");
 			const controller = new AbortController();
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }], {
 				signal: controller.signal,
@@ -549,7 +644,7 @@ describe("router extension", () => {
 					},
 				];
 			});
-			piRouter(pi, { panelRunner });
+			piRouter(pi, { panelRunner, usageHistoryPath: historyPath });
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			const result = await handlers.get("before_agent_start")?.(
 				{
@@ -566,6 +661,8 @@ describe("router extension", () => {
 			expect(result).toMatchObject({ systemPrompt: expect.stringContaining("panel for reason") });
 			expect(events.some((event) => (event as { okCount?: number }).okCount === 1)).toBe(true);
 			expect(events.at(-1)).toMatchObject({ active: true, route: "reason", panelActive: true, panelOkCount: 1 });
+			handlers.get("agent_end")?.({ type: "agent_end", messages: [] }, ctx);
+			expect(readFileSync(historyPath, "utf-8")).toContain('"kind":"panel"');
 		} finally {
 			cleanup();
 		}
@@ -590,7 +687,7 @@ describe("router extension", () => {
 			const panelRunner = vi.fn(async () => [
 				{ model: "openai-codex/gpt-5.5:xhigh", ok: false, text: "timeout", diagnostic: "timeout", latencyMs: 50 },
 			]);
-			piRouter(pi, { panelRunner });
+			piRouter(pi, { panelRunner, usageHistoryPath: join(cwd, "router-usage.jsonl") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			const result = await handlers.get("before_agent_start")?.(

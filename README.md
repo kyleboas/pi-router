@@ -56,6 +56,8 @@ PI_ROUTER_ACTIVE=1 pi "fix the failing tests"
 - `/router status`
 - `/router cost` — show session cost, budgets, token, cache-read/cache-write, route, and model totals
 - `/router cost history` — show aggregate JSONL usage history without prompt text
+- `/router cost daily` — show recent daily JSONL cost rollups
+- `/router label <route>` — opt-in local misroute label for the last decision; stores that prompt in `misroutes.jsonl`
 - `/router doctor` — validate config, env overrides, model availability, cache env, cost controls, history path, and synthesis setup
 - `/router smoke` — opt-in live panel smoke test; requires `PI_ROUTER_LIVE=1`
 - `/router auto on|off`
@@ -87,6 +89,9 @@ Routing-only example:
     "research": ["openai-codex/gpt-5.5:high", "openai-codex/gpt-5.5:medium"],
     "general": ["openai-codex/gpt-5.5:low", "openai-codex/gpt-5.5:medium"]
   },
+  "extraKeywords": {
+    "research": ["my research service", "custom_pipeline"]
+  },
   "costControls": {
     "enabled": true,
     "preferCache": true,
@@ -105,7 +110,11 @@ Routing-only example:
 }
 ```
 
-Cost controls are conservative and use the same model families. The defaults keep `code`, `reason`, and `research` strong, while `general` and `write` start at lower thinking. Guardrail, code, research, reasoning, production, verification, and explicit “think hard” prompts can still escalate above cheap defaults. Set `PI_CACHE_RETENTION=long` when the backing provider supports prompt caching. Usage history is append-only JSONL at `~/.pi/agent/extensions/router-usage.jsonl` and stores aggregate usage only, never prompt text.
+Cost controls are conservative and use the same model families. Routing scores all matching feature families, selects the highest score with a fixed tie-break order, derives confidence from the winner/runner-up margin, and keeps short follow-up turns on the previous route when appropriate. The defaults keep `code`, `reason`, and `research` strong, while `general` and `write` start at lower thinking. Short low-risk code prompts can de-escalate to medium; guardrail, code, research, reasoning, production, verification, and explicit “think hard” prompts can still escalate above cheap defaults. Set `PI_CACHE_RETENTION=long` when the backing provider supports prompt caching. Usage history is append-only JSONL at `~/.pi/agent/extensions/router-usage.jsonl` and stores aggregate usage only, never prompt text. Usage records include the route, classifier rule, confidence, model, thinking level, session id, token counts, and cost. Advisory panel subprocesses also write `kind: "panel"` records with model, latency, and success state; token/cost fields remain zero unless the subprocess exposes usage metadata.
+
+`extraKeywords` adds local, config-owned route cues without forking the classifier. Project config overrides global config per route. Use this for personal service names, hostnames, or tool names that should route like an existing family.
+
+`/router label <route>` records that the previous router decision should have used another route. Labels are append-only JSONL at `~/.pi/agent/extensions/misroutes.jsonl`. Unlike aggregate usage history, misroute labels intentionally store the prompt text, but only after you run the label command.
 
 Optional lean tool profiles can reduce context/tool overhead for low-risk routes without enabling tools the user disabled:
 
@@ -177,7 +186,7 @@ Synthesis controls:
 
 `/router doctor` reports config paths, `PI_ROUTER_ACTIVE`, `PI_CACHE_RETENTION`, `PI_BIN`/`CLAUDE_BIN` availability, config diagnostics, context usage, usage-history path, cost controls, budgets, per-route model availability, and synthesis configuration. Invalid configured route models now warn and fall back to defaults instead of silently leaving a route empty. State commands preserve unrelated raw route/synthesis config instead of rewriting the whole resolved config.
 
-`/router cost` reports in-memory session totals from assistant usage metadata: dollars, input/output tokens, cache reads/writes, cache hit rate, budget state, and route/model breakdowns. `/router cost history` reports recent aggregate history from JSONL. These counters do not suppress usage; they make expensive paths visible.
+`/router cost` reports in-memory session totals from assistant usage metadata: dollars, input/output tokens, cache reads/writes, cache hit rate, budget state, and route/model breakdowns. `/router cost history` reports recent aggregate history from JSONL, and `/router cost daily` reports recent daily rollups. These counters do not suppress usage; they make expensive paths visible.
 
 `/router smoke` is a live, opt-in panel subprocess check. It refuses to run unless `PI_ROUTER_LIVE=1` is set, uses a tiny prompt, limits each configured route to one panelist, and caps timeout at 15 seconds.
 
@@ -193,7 +202,7 @@ npm run test -- __tests__/eval-corpus.test.ts
 
 The eval corpus lives in `eval/corpus.json`, with accepted snapshots in `eval/baseline.report.json` and `eval/collision.report.json`. Labels are human judgments; current classifier misses should be marked with `knownGap`, not copied into `expected`.
 
-The baseline report includes rule attribution, known gaps by rule, and confidence calibration buckets. The collision report is non-gating and shows prompts where multiple route feature families match before first-match ordering selects one, including winner confidence, runner-up route, margin/tie buckets, and whether each overlap is benign, a harmful near-miss, or a wrong winner.
+The baseline report includes rule attribution, known gaps by rule, and confidence calibration buckets. The collision report shows prompts where multiple route feature families match before scored selection chooses one, including winner confidence, runner-up route, margin/tie buckets, and whether each overlap is benign, a harmful near-miss, or a wrong winner. CI gates wrong winners and harmful-collision regressions.
 
 It emits structured telemetry on `pi.events`:
 
@@ -204,4 +213,4 @@ router:cost
 router:alert
 ```
 
-`router:decision` includes route, selected model, thinking level, reason, classifier rule, confidence, matched signals, fallback reason, and panel summary when synthesis ran. `router:panel` includes panel models, success/failure counts, latency, and raw panel results. `router:cost` includes session totals, latest route/model/thinking, token counts, cache reads/writes, total cost, and cache hit rate. `router:alert` emits soft budget threshold crossings.
+`router:decision` includes route, selected model, thinking level, reason, classifier rule, confidence, matched signals, fallback reason, and panel summary when synthesis ran. `router:panel` includes panel models, success/failure counts, latency, and raw panel results. `router:cost` includes session totals, latest route/model/thinking/rule/confidence/session id, token counts, cache reads/writes, total cost, and cache hit rate. `router:alert` emits soft budget threshold crossings.

@@ -18,11 +18,11 @@
       "general": 0
     },
     "code": {
-      "fast": 0,
-      "code": 16,
-      "reason": 0,
-      "write": 0,
-      "research": 2,
+      "fast": 1,
+      "code": 13,
+      "reason": 1,
+      "write": 2,
+      "research": 1,
       "general": 0
     },
     "reason": {
@@ -59,12 +59,12 @@
     }
   },
   "ruleHistogram": {
-    "balanced-trivial": 2,
+    "balanced-trivial": 3,
     "fast-mode-trivial": 2,
-    "code-keywords": 16,
-    "research-keywords": 15,
-    "reason-keywords": 11,
-    "write-keywords": 6,
+    "code-keywords": 13,
+    "research-keywords": 14,
+    "reason-keywords": 12,
+    "write-keywords": 8,
     "verification-guard": 6,
     "policy-guard": 5,
     "default-general": 2
@@ -77,18 +77,18 @@
       "accuracy": 1
     },
     "0.60-0.80": {
-      "count": 0,
-      "accepted": 0,
+      "count": 23,
+      "accepted": 23,
       "accuracy": 1
     },
     "0.80-0.90": {
-      "count": 50,
-      "accepted": 50,
+      "count": 25,
+      "accepted": 25,
       "accuracy": 1
     },
     "0.90-1.00": {
-      "count": 13,
-      "accepted": 13,
+      "count": 15,
+      "accepted": 15,
       "accuracy": 1
     }
   },
@@ -105,7 +105,7 @@
       "expectedGuardrails": [],
       "actual": "fast",
       "thinkingLevel": "minimal",
-      "confidence": 0.85,
+      "confidence": 0.798,
       "rule": "balanced-trivial",
       "signals": [
         "trivial-prompt"
@@ -123,7 +123,7 @@
       "expectedGuardrails": [],
       "actual": "fast",
       "thinkingLevel": "minimal",
-      "confidence": 0.9,
+      "confidence": 0.877,
       "rule": "fast-mode-trivial",
       "signals": [
         "fast-mode",
@@ -141,7 +141,7 @@
       "expectedGuardrails": [],
       "actual": "fast",
       "thinkingLevel": "minimal",
-      "confidence": 0.85,
+      "confidence": 0.798,
       "rule": "balanced-trivial",
       "signals": [
         "trivial-prompt"
@@ -158,7 +158,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.824,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -175,7 +175,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.97,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -192,7 +192,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.794,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -209,7 +209,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.824,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -226,7 +226,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.824,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -243,7 +243,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.97,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -260,7 +260,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.97,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -277,7 +277,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.837,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -294,7 +294,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.803,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -311,7 +311,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.811,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -328,7 +328,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.811,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -345,7 +345,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.811,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -362,7 +362,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "medium",
-      "confidence": 0.8,
+      "confidence": 0.811,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -379,7 +379,7 @@
       "expectedGuardrails": [],
       "actual": "write",
       "thinkingLevel": "medium",
-      "confidence": 0.8,
+      "confidence": 0.807,
       "rule": "write-keywords",
       "signals": [
         "writing-or-editing"
@@ -396,7 +396,7 @@
       "expectedGuardrails": [],
       "actual": "write",
       "thinkingLevel": "medium",
-      "confidence": 0.8,
+      "confidence": 0.807,
       "rule": "write-keywords",
       "signals": [
         "writing-or-editing"
@@ -413,7 +413,7 @@
       "expectedGuardrails": [],
       "actual": "write",
       "thinkingLevel": "medium",
-      "confidence": 0.8,
+      "confidence": 0.807,
       "rule": "write-keywords",
       "signals": [
         "writing-or-editing"
@@ -430,7 +430,7 @@
       "expectedGuardrails": [],
       "actual": "write",
       "thinkingLevel": "medium",
-      "confidence": 0.8,
+      "confidence": 0.735,
       "rule": "write-keywords",
       "signals": [
         "writing-or-editing"
@@ -643,7 +643,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.875,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -661,7 +661,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.833,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -681,7 +681,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.728,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -701,7 +701,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.728,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -720,7 +720,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.785,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -739,7 +739,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.755,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -756,7 +756,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "medium",
-      "confidence": 0.85,
+      "confidence": 0.824,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -773,7 +773,7 @@
       "expectedGuardrails": [],
       "actual": "fast",
       "thinkingLevel": "minimal",
-      "confidence": 0.9,
+      "confidence": 0.877,
       "rule": "fast-mode-trivial",
       "signals": [
         "fast-mode",
@@ -791,7 +791,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.748,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -810,7 +810,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.785,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -830,7 +830,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.785,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -847,12 +847,12 @@
         "fast"
       ],
       "expectedGuardrails": [],
-      "actual": "code",
-      "thinkingLevel": "high",
-      "confidence": 0.85,
-      "rule": "code-keywords",
+      "actual": "fast",
+      "thinkingLevel": "minimal",
+      "confidence": 0.72,
+      "rule": "balanced-trivial",
       "signals": [
-        "code-or-repo"
+        "trivial-prompt"
       ],
       "guardrails": [],
       "routeAccepted": true,
@@ -868,7 +868,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.785,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -885,7 +885,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.802,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -902,12 +902,12 @@
         "write"
       ],
       "expectedGuardrails": [],
-      "actual": "code",
-      "thinkingLevel": "high",
-      "confidence": 0.85,
-      "rule": "code-keywords",
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.745,
+      "rule": "write-keywords",
       "signals": [
-        "code-or-repo"
+        "writing-or-editing"
       ],
       "guardrails": [],
       "routeAccepted": true,
@@ -922,12 +922,12 @@
         "write"
       ],
       "expectedGuardrails": [],
-      "actual": "research",
-      "thinkingLevel": "high",
-      "confidence": 0.85,
-      "rule": "research-keywords",
+      "actual": "write",
+      "thinkingLevel": "medium",
+      "confidence": 0.825,
+      "rule": "write-keywords",
       "signals": [
-        "research-or-production"
+        "writing-or-editing"
       ],
       "guardrails": [],
       "routeAccepted": true,
@@ -943,7 +943,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.875,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -962,7 +962,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.833,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -981,7 +981,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.728,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -1000,7 +1000,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.728,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -1019,7 +1019,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.728,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -1083,12 +1083,12 @@
         "fast"
       ],
       "expectedGuardrails": [],
-      "actual": "code",
+      "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.85,
-      "rule": "code-keywords",
+      "confidence": 0.748,
+      "rule": "reason-keywords",
       "signals": [
-        "code-or-repo"
+        "reasoning-or-planning"
       ],
       "guardrails": [],
       "routeAccepted": true,
@@ -1104,7 +1104,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.733,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -1124,7 +1124,7 @@
       "expectedGuardrails": [],
       "actual": "code",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.785,
       "rule": "code-keywords",
       "signals": [
         "code-or-repo"
@@ -1143,7 +1143,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.823,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -1162,7 +1162,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.837,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -1180,7 +1180,7 @@
       "expectedGuardrails": [],
       "actual": "reason",
       "thinkingLevel": "high",
-      "confidence": 0.8,
+      "confidence": 0.785,
       "rule": "reason-keywords",
       "signals": [
         "reasoning-or-planning"
@@ -1197,7 +1197,7 @@
       "expectedGuardrails": [],
       "actual": "write",
       "thinkingLevel": "medium",
-      "confidence": 0.8,
+      "confidence": 0.807,
       "rule": "write-keywords",
       "signals": [
         "writing-or-editing"
@@ -1214,7 +1214,7 @@
       "expectedGuardrails": [],
       "actual": "write",
       "thinkingLevel": "medium",
-      "confidence": 0.8,
+      "confidence": 0.807,
       "rule": "write-keywords",
       "signals": [
         "writing-or-editing"
@@ -1233,7 +1233,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.792,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -1253,7 +1253,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.905,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
@@ -1294,7 +1294,7 @@
       "expectedGuardrails": [],
       "actual": "research",
       "thinkingLevel": "high",
-      "confidence": 0.85,
+      "confidence": 0.792,
       "rule": "research-keywords",
       "signals": [
         "research-or-production"
