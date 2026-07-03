@@ -1,0 +1,9 @@
+[
+  {
+    "id": "fast-smoke-001",
+    "route": "fast",
+    "prompt": "Say thanks in one short sentence.",
+    "kind": "exact",
+    "expectedIncludes": ["thanks"]
+  }
+]

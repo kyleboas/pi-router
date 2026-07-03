@@ -1,0 +1,9 @@
+[
+  {
+    "id": "general-smoke-001",
+    "route": "general",
+    "prompt": "Explain when to ask for clarification instead of assuming a missing fact.",
+    "kind": "rubric",
+    "rubric": ["Mentions uncertainty", "Avoids hallucinated specifics", "Gives practical guidance"]
+  }
+]

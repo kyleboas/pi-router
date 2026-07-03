@@ -1,0 +1,9 @@
+[
+  {
+    "id": "write-smoke-001",
+    "route": "write",
+    "prompt": "Rewrite a terse implementation note into clear release-note prose.",
+    "kind": "rubric",
+    "rubric": ["Keeps the meaning", "Improves clarity", "Avoids adding unsupported details"]
+  }
+]

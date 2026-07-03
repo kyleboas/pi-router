@@ -1,0 +1,9 @@
+[
+  {
+    "id": "reason-smoke-001",
+    "route": "reason",
+    "prompt": "Compare two rollout strategies and choose the safer one under rollback constraints.",
+    "kind": "rubric",
+    "rubric": ["States tradeoffs", "Accounts for rollback", "Gives a justified recommendation"]
+  }
+]

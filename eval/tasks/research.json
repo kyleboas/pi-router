@@ -1,0 +1,9 @@
+[
+  {
+    "id": "research-smoke-001",
+    "route": "research",
+    "prompt": "Find what evidence would be needed before claiming a production cron is degraded.",
+    "kind": "rubric",
+    "rubric": ["Separates observation from conclusion", "Lists logs/metrics to verify", "Avoids unsupported factual claims"]
+  }
+]
