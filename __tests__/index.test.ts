@@ -437,6 +437,95 @@ describe("router extension", () => {
 		}
 	});
 
+	it("records implicit use corrections after same-task follow-up", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const misroutePath = join(cwd, "misroutes.jsonl");
+			const { pi, handlers, commands } = mockPi(true);
+			piRouter(pi, {
+				misrouteHistoryPath: misroutePath,
+				now: () => new Date("2026-06-28T12:00:00.000Z"),
+			});
+			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
+			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "write this in a cleaner style", systemPrompt: "base" },
+				ctx,
+			);
+			await commands.get(_test.ROUTER_COMMAND)?.handler("use code", ctx as never);
+			expect(() => readFileSync(misroutePath, "utf-8")).toThrow();
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "rewrite this same helper in a cleaner style", systemPrompt: "base" },
+				ctx,
+			);
+			const record = JSON.parse(readFileSync(misroutePath, "utf-8").trim());
+			expect(record).toMatchObject({
+				source: "implicit-use",
+				prompt: "write this in a cleaner style",
+				wrongRoute: "write",
+				correctRoute: "code",
+				wrongThinkingLevel: "low",
+			});
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("skips implicit use corrections before dissimilar new tasks", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const misroutePath = join(cwd, "misroutes.jsonl");
+			const { pi, handlers, commands } = mockPi(true);
+			piRouter(pi, { misrouteHistoryPath: misroutePath });
+			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
+			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "write this in a cleaner style", systemPrompt: "base" },
+				ctx,
+			);
+			await commands.get(_test.ROUTER_COMMAND)?.handler("use code", ctx as never);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "research railway deployment logs", systemPrompt: "base" },
+				ctx,
+			);
+			expect(() => readFileSync(misroutePath, "utf-8")).toThrow();
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("records implicit effort corrections with corrected thinking level", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const misroutePath = join(cwd, "misroutes.jsonl");
+			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: true }));
+			const { pi, handlers, commands } = mockPi(false);
+			piRouter(pi, { misrouteHistoryPath: misroutePath });
+			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
+			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "Tell me something useful about routers.", systemPrompt: "base" },
+				ctx,
+			);
+			await commands.get(_test.ROUTER_COMMAND)?.handler("effort current high", ctx as never);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "continue", systemPrompt: "base" },
+				ctx,
+			);
+			const record = JSON.parse(readFileSync(misroutePath, "utf-8").trim());
+			expect(record).toMatchObject({
+				source: "implicit-effort",
+				wrongRoute: "general",
+				correctRoute: "general",
+				wrongThinkingLevel: "low",
+				correctThinkingLevel: "high",
+			});
+		} finally {
+			cleanup();
+		}
+	});
+
 	it("emits soft budget alerts and reports budget status", async () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
