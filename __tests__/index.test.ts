@@ -420,6 +420,50 @@ describe("router extension", () => {
 		}
 	});
 
+	it("writes shadow route records without changing turn counts", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const historyPath = join(cwd, "router-usage.jsonl");
+			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: true, shadowRoute: true }));
+			const { pi, handlers } = mockPi(false);
+			piRouter(pi, { usageHistoryPath: historyPath, now: () => new Date("2026-06-28T12:00:00.000Z") });
+			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
+			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "write this in a cleaner style", systemPrompt: "base" },
+				ctx,
+			);
+			handlers.get("message_end")?.(
+				{
+					type: "message_end",
+					message: {
+						role: "assistant",
+						provider: "openai-codex",
+						model: "gpt-5.5",
+						usage: { input: 10, output: 5, totalTokens: 15, cost: { total: 0.02 } },
+					},
+				},
+				ctx,
+			);
+			handlers.get("agent_end")?.({ type: "agent_end", messages: [] }, ctx);
+			const records = readFileSync(historyPath, "utf-8")
+				.trim()
+				.split(/\r?\n/)
+				.map((line) => JSON.parse(line));
+			expect(records.find((record) => record.kind === "shadow")).toMatchObject({
+				active: true,
+				route: "write",
+				shadowRoute: "write",
+				shadowThinkingLevel: "minimal",
+				shadowEstimatedCacheImpact: "same-family",
+			});
+			expect(_test.usageHistorySummary(records, new Date("2026-06-28T13:00:00.000Z")).join("\n")).toContain("turns=1");
+		} finally {
+			cleanup();
+		}
+	});
+
 	it("excludes panel records from history turn counts", () => {
 		const base = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, costTotal: 0 };
 		const lines = _test.usageHistorySummary(
