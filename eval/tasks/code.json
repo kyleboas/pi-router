@@ -1,0 +1,9 @@
+[
+  {
+    "id": "code-smoke-001",
+    "route": "code",
+    "prompt": "In a small TypeScript project, fix a failing test caused by an off-by-one loop boundary.",
+    "kind": "rubric",
+    "rubric": ["Identifies the off-by-one boundary", "Describes a targeted code change", "Mentions running the relevant test"]
+  }
+]
