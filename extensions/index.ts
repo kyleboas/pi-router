@@ -132,6 +132,7 @@ interface RouterConfigFile {
 	synthesis?: RouterSynthesisConfigFile;
 	costControls?: RouterCostControlsConfigFile;
 	toolProfiles?: Partial<Record<RouterRoute, string[]>>;
+	shadowRoute?: boolean;
 }
 
 export interface RouterPanelSpec {
@@ -181,6 +182,7 @@ interface ResolvedRouterConfig {
 	synthesis: ResolvedRouterSynthesisConfig;
 	costControls: ResolvedRouterCostControls;
 	toolProfiles: Partial<Record<RouterRoute, string[]>>;
+	shadowRoute: boolean;
 	diagnostics: RouterConfigDiagnostic[];
 }
 
@@ -617,6 +619,7 @@ function readConfigFileWithDiagnostics(filePath: string): {
 			"synthesis",
 			"costControls",
 			"toolProfiles",
+			"shadowRoute",
 		]);
 		for (const key of Object.keys(parsed)) {
 			if (!knownKeys.has(key)) addDiagnostic(diagnostics, "warning", `${filePath}.${key}`, "Unknown top-level key.");
@@ -671,6 +674,10 @@ function readConfigFileWithDiagnostics(filePath: string): {
 		config.synthesis = readSynthesisConfig(parsed.synthesis, diagnostics, `${filePath}.synthesis`);
 		config.costControls = readCostControlsConfig(parsed.costControls, diagnostics, `${filePath}.costControls`);
 		config.toolProfiles = readToolProfilesConfig(parsed.toolProfiles, diagnostics, `${filePath}.toolProfiles`);
+		if (parsed.shadowRoute !== undefined) {
+			if (typeof parsed.shadowRoute === "boolean") config.shadowRoute = parsed.shadowRoute;
+			else addDiagnostic(diagnostics, "warning", `${filePath}.shadowRoute`, "Expected a boolean; value ignored.");
+		}
 		return { config, diagnostics };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -799,6 +806,7 @@ export function resolveRouterConfig(cwd: string, homeDir = homedir()): ResolvedR
 		costControls: { ...globalConfig.costControls, ...projectConfig.costControls },
 		extraKeywords: { ...globalConfig.extraKeywords, ...projectConfig.extraKeywords },
 		toolProfiles: { ...globalConfig.toolProfiles, ...projectConfig.toolProfiles },
+		shadowRoute: projectConfig.shadowRoute ?? globalConfig.shadowRoute,
 	};
 	const routes = Object.fromEntries(
 		ROUTES.map((route) => [
@@ -827,6 +835,7 @@ export function resolveRouterConfig(cwd: string, homeDir = homedir()): ResolvedR
 		synthesis,
 		costControls,
 		toolProfiles: merged.toolProfiles ?? {},
+		shadowRoute: merged.shadowRoute ?? false,
 		diagnostics,
 	};
 }
@@ -1266,6 +1275,35 @@ export function applyCostControlledThinking(
 	return level;
 }
 
+function oneThinkingStepDown(level: ThinkingLevel): ThinkingLevel {
+	const rank = thinkingRank(level);
+	return THINKING_ORDER[Math.max(0, rank - 1)] ?? level;
+}
+
+function shadowThinkingCandidate(
+	prompt: string,
+	decision: RouterDecision,
+	selectedLevel: ThinkingLevel,
+): ThinkingLevel {
+	if (decision.guardrails?.length) return selectedLevel;
+	if (
+		/\b(think hard|think deeply|carefully|verify|audit|security|production|incident|root cause|architecture|design tradeoffs?|debug|failing tests?|regression)\b/i.test(
+			prompt,
+		)
+	) {
+		return selectedLevel;
+	}
+	return oneThinkingStepDown(selectedLevel);
+}
+
+function cacheImpactForShadow(
+	selectedModel: string | undefined,
+	shadowModel: string | undefined,
+): "same-family" | "family-switch" | "unknown" {
+	if (!selectedModel || !shadowModel) return "unknown";
+	return selectedModel.split("/")[0] === shadowModel.split("/")[0] ? "same-family" : "family-switch";
+}
+
 function modelKey(model: Pick<Model<Api>, "provider" | "id">): string {
 	return `${model.provider}/${model.id}`;
 }
@@ -1582,7 +1620,7 @@ interface RouterCostEvent extends RouterUsageTotals {
 interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 	timestamp: string;
 	sessionId?: string;
-	kind?: "turn" | "panel" | "unrouted";
+	kind?: "turn" | "panel" | "unrouted" | "shadow";
 	active?: boolean;
 	route?: RouterRoute;
 	model?: string;
@@ -1592,6 +1630,11 @@ interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 	signals?: string[];
 	panelOk?: boolean;
 	panelLatencyMs?: number;
+	shadowRoute?: RouterRoute;
+	shadowThinkingLevel?: ThinkingLevel;
+	shadowRule?: RouterRuleId;
+	shadowConfidence?: number;
+	shadowEstimatedCacheImpact?: "same-family" | "family-switch" | "unknown";
 }
 
 interface RouterMisrouteRecord {
@@ -1658,7 +1701,7 @@ function misrouteHistoryPath(homeDir = homedir()): string {
 }
 
 function addRecordToTotals(total: RouterUsageTotals, record: RouterUsageRecord): void {
-	addUsageTotals(total, record, record.kind !== "panel" && record.kind !== "unrouted");
+	addUsageTotals(total, record, record.kind !== "panel" && record.kind !== "unrouted" && record.kind !== "shadow");
 }
 
 function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
@@ -1675,7 +1718,9 @@ function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
 						? "turn"
 						: parsed.kind === "unrouted"
 							? "unrouted"
-							: undefined,
+							: parsed.kind === "shadow"
+								? "shadow"
+								: undefined,
 			active: typeof parsed.active === "boolean" ? parsed.active : undefined,
 			route: typeof parsed.route === "string" && isRouterRoute(parsed.route) ? parsed.route : undefined,
 			model: typeof parsed.model === "string" ? parsed.model : undefined,
@@ -1687,6 +1732,19 @@ function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
 				: undefined,
 			panelOk: typeof parsed.panelOk === "boolean" ? parsed.panelOk : undefined,
 			panelLatencyMs: typeof parsed.panelLatencyMs === "number" ? parsed.panelLatencyMs : undefined,
+			shadowRoute:
+				typeof parsed.shadowRoute === "string" && isRouterRoute(parsed.shadowRoute) ? parsed.shadowRoute : undefined,
+			shadowThinkingLevel: normalizeThinkingLevel(parsed.shadowThinkingLevel),
+			shadowRule:
+				typeof parsed.shadowRule === "string" && isRouterRuleId(parsed.shadowRule) ? parsed.shadowRule : undefined,
+			shadowConfidence:
+				typeof parsed.shadowConfidence === "number" ? Math.max(0, Math.min(1, parsed.shadowConfidence)) : undefined,
+			shadowEstimatedCacheImpact:
+				parsed.shadowEstimatedCacheImpact === "same-family" ||
+				parsed.shadowEstimatedCacheImpact === "family-switch" ||
+				parsed.shadowEstimatedCacheImpact === "unknown"
+					? parsed.shadowEstimatedCacheImpact
+					: undefined,
 			input: typeof parsed.input === "number" ? parsed.input : 0,
 			output: typeof parsed.output === "number" ? parsed.output : 0,
 			cacheRead: typeof parsed.cacheRead === "number" ? parsed.cacheRead : 0,
@@ -2166,6 +2224,33 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		};
 		activeTurnDecision = lastDecision;
 		lastDecisionTurn = turnCounter;
+		if (config.shadowRoute) {
+			const shadowThinkingLevel = shadowThinkingCandidate(event.prompt, decision, thinkingLevel);
+			const shadowModel = spec ? `${spec.provider}/${spec.id}` : selectedModel;
+			pendingUsageRecords.push({
+				timestamp: now().toISOString(),
+				sessionId,
+				kind: "shadow",
+				active: true,
+				route: decision.route,
+				model: selectedModel,
+				thinkingLevel,
+				rule: decision.rule,
+				confidence: decision.confidence,
+				signals: decision.signals,
+				shadowRoute: decision.route,
+				shadowThinkingLevel,
+				shadowRule: decision.rule,
+				shadowConfidence: decision.confidence,
+				shadowEstimatedCacheImpact: cacheImpactForShadow(selectedModel, shadowModel),
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				costTotal: 0,
+			});
+		}
 		applyToolProfile(decision.route, config);
 
 		let systemPrompt = event.systemPrompt;
@@ -2358,6 +2443,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					`CLAUDE_BIN: ${process.env.CLAUDE_BIN ?? "claude"} -> ${commandAvailability(process.env.CLAUDE_BIN ?? "claude")}`,
 					`PI_CACHE_RETENTION: ${process.env.PI_CACHE_RETENTION ?? "unset"}`,
 					`Cost controls: ${config.costControls.enabled ? "enabled" : "disabled"}; preferCache=${config.costControls.preferCache}; persistHistory=${config.costControls.persistHistory}; maxDefaultThinking=${config.costControls.maxDefaultThinking ?? "none"}; synthesisMinPromptChars=${config.costControls.synthesisMinPromptChars ?? "default"}; synthesisMinConfidence=${config.costControls.synthesisMinConfidence ?? "none"}`,
+					`Shadow route: ${config.shadowRoute ? "enabled" : "disabled"}`,
 					`Extra keywords: ${
 						Object.entries(config.extraKeywords)
 							.flatMap(([route, keywords]) => (keywords ?? []).map((keyword) => `${route}:${keyword}`))
@@ -2513,6 +2599,7 @@ export const _test = {
 	getConfigPaths,
 	hasSynthesisDeepCue,
 	parseCostControlsConfig,
+	oneThinkingStepDown,
 	parseModelSpec,
 	promptSimilarity,
 	sameTaskPrompt,
