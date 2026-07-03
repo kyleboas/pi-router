@@ -1,53 +1,55 @@
 {
-  "name": "@kyleboas/pi-router",
-  "version": "0.3.0",
-  "description": "Opt-in model, thinking-level, cost-control, and advisory synthesis router for pi",
-  "type": "module",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kyleboas/pi-router.git"
-  },
-  "bugs": {
-    "url": "https://github.com/kyleboas/pi-router/issues"
-  },
-  "homepage": "https://github.com/kyleboas/pi-router#readme",
-  "engines": {
-    "node": ">=22"
-  },
-  "files": [
-    "extensions/",
-    "README.md",
-    "LICENSE",
-    "NOTICE",
-    "CHANGELOG.md"
-  ],
-  "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "check": "npm run lint && npm run typecheck && npm run test"
-  },
-  "keywords": [
-    "pi",
-    "pi-package",
-    "pi-extension",
-    "pi-router",
-    "model-router",
-    "coding-assistant"
-  ],
-  "pi": {
-    "extensions": [
-      "./extensions/index.ts"
-    ]
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.1",
-    "@mariozechner/pi-ai": "^0.64.0",
-    "@mariozechner/pi-coding-agent": "^0.64.0",
-    "@types/node": "^22.0.0",
-    "typescript": "^5.5.0",
-    "vitest": "^4.0.18"
-  }
+	"name": "@kyleboas/pi-router",
+	"version": "0.3.0",
+	"description": "Opt-in model, thinking-level, cost-control, and advisory synthesis router for pi",
+	"type": "module",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kyleboas/pi-router.git"
+	},
+	"bugs": {
+		"url": "https://github.com/kyleboas/pi-router/issues"
+	},
+	"homepage": "https://github.com/kyleboas/pi-router#readme",
+	"engines": {
+		"node": ">=22"
+	},
+	"files": [
+		"extensions/",
+		"scripts/",
+		"README.md",
+		"LICENSE",
+		"NOTICE",
+		"CHANGELOG.md"
+	],
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"check": "npm run lint && npm run typecheck && npm run test",
+		"corpus:candidates": "node scripts/corpus-candidates.mjs"
+	},
+	"keywords": [
+		"pi",
+		"pi-package",
+		"pi-extension",
+		"pi-router",
+		"model-router",
+		"coding-assistant"
+	],
+	"pi": {
+		"extensions": [
+			"./extensions/index.ts"
+		]
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.1",
+		"@mariozechner/pi-ai": "^0.64.0",
+		"@mariozechner/pi-coding-agent": "^0.64.0",
+		"@types/node": "^22.0.0",
+		"typescript": "^5.5.0",
+		"vitest": "^4.0.18"
+	}
 }
