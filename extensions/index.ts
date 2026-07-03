@@ -912,6 +912,31 @@ function isShortFollowup(prompt: string): boolean {
 	);
 }
 
+function promptTokens(prompt: string): Set<string> {
+	return new Set(
+		prompt
+			.toLowerCase()
+			.split(/[^a-z0-9_]+/i)
+			.filter((token) => token.length >= 3),
+	);
+}
+
+function promptSimilarity(a: string, b: string): number {
+	const aTokens = promptTokens(a);
+	const bTokens = promptTokens(b);
+	if (!aTokens.size && !bTokens.size) return 1;
+	let intersection = 0;
+	for (const token of aTokens) if (bTokens.has(token)) intersection += 1;
+	const union = new Set([...aTokens, ...bTokens]).size;
+	return union ? intersection / union : 0;
+}
+
+function sameTaskPrompt(a: string, b: string): boolean {
+	if (a.trim() === b.trim()) return true;
+	if (isShortFollowup(b)) return true;
+	return promptSimilarity(a, b) >= 0.35;
+}
+
 function scoreConfidence(score: number): number {
 	return Math.max(0.55, Math.min(0.94, Number((0.52 + score / 230).toFixed(3))));
 }
@@ -1549,6 +1574,7 @@ interface RouterCostEvent extends RouterUsageTotals {
 	thinkingLevel?: ThinkingLevel;
 	rule?: RouterRuleId;
 	confidence?: number;
+	signals?: string[];
 	sessionId?: string;
 	cacheHitRate: number;
 }
@@ -1556,12 +1582,14 @@ interface RouterCostEvent extends RouterUsageTotals {
 interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 	timestamp: string;
 	sessionId?: string;
-	kind?: "turn" | "panel";
+	kind?: "turn" | "panel" | "unrouted";
+	active?: boolean;
 	route?: RouterRoute;
 	model?: string;
 	thinkingLevel?: ThinkingLevel;
 	rule?: RouterRuleId;
 	confidence?: number;
+	signals?: string[];
 	panelOk?: boolean;
 	panelLatencyMs?: number;
 }
@@ -1569,11 +1597,15 @@ interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 interface RouterMisrouteRecord {
 	timestamp: string;
 	sessionId: string;
+	source: "explicit" | "implicit-use" | "implicit-effort";
 	prompt: string;
 	wrongRoute?: RouterRoute;
 	correctRoute: RouterRoute;
+	wrongThinkingLevel?: ThinkingLevel;
+	correctThinkingLevel?: ThinkingLevel;
 	rule?: RouterRuleId;
 	confidence?: number;
+	signals?: string[];
 }
 
 interface RouterBudgetStatus {
@@ -1626,7 +1658,7 @@ function misrouteHistoryPath(homeDir = homedir()): string {
 }
 
 function addRecordToTotals(total: RouterUsageTotals, record: RouterUsageRecord): void {
-	addUsageTotals(total, record, record.kind !== "panel");
+	addUsageTotals(total, record, record.kind !== "panel" && record.kind !== "unrouted");
 }
 
 function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
@@ -1636,12 +1668,23 @@ function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
 		return {
 			timestamp: parsed.timestamp,
 			sessionId: typeof parsed.sessionId === "string" ? parsed.sessionId : undefined,
-			kind: parsed.kind === "panel" ? "panel" : parsed.kind === "turn" ? "turn" : undefined,
+			kind:
+				parsed.kind === "panel"
+					? "panel"
+					: parsed.kind === "turn"
+						? "turn"
+						: parsed.kind === "unrouted"
+							? "unrouted"
+							: undefined,
+			active: typeof parsed.active === "boolean" ? parsed.active : undefined,
 			route: typeof parsed.route === "string" && isRouterRoute(parsed.route) ? parsed.route : undefined,
 			model: typeof parsed.model === "string" ? parsed.model : undefined,
 			thinkingLevel: normalizeThinkingLevel(parsed.thinkingLevel),
 			rule: typeof parsed.rule === "string" && isRouterRuleId(parsed.rule) ? parsed.rule : undefined,
 			confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : undefined,
+			signals: Array.isArray(parsed.signals)
+				? parsed.signals.filter((signal): signal is string => typeof signal === "string")
+				: undefined,
 			panelOk: typeof parsed.panelOk === "boolean" ? parsed.panelOk : undefined,
 			panelLatencyMs: typeof parsed.panelLatencyMs === "number" ? parsed.panelLatencyMs : undefined,
 			input: typeof parsed.input === "number" ? parsed.input : 0,
@@ -1748,6 +1791,18 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 	let lastBudgetAlertKey: string | undefined;
 	let turnCounter = 0;
 	let lastSynthesisTurn = Number.NEGATIVE_INFINITY;
+	let lastDecisionTurn = Number.NEGATIVE_INFINITY;
+	let lastImplicitLabelKey: string | undefined;
+	let pendingImplicitLabel:
+		| {
+				source: "implicit-use" | "implicit-effort";
+				correctRoute: RouterRoute;
+				correctThinkingLevel?: ThinkingLevel;
+				decision: RouterTelemetry;
+				prompt: string;
+				turn: number;
+		  }
+		| undefined;
 	let synthesisRuns = 0;
 	let toolRestore: string[] | undefined;
 
@@ -1803,6 +1858,52 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			const first = parseModelSpec(entries[0] ?? "") ?? config.routes[route][0];
 			entries[0] = `${first.provider}/${first.id}:${level}`;
 			routes[route] = entries;
+		});
+	}
+
+	function queueImplicitMisroute(
+		source: "implicit-use" | "implicit-effort",
+		correctRoute: RouterRoute,
+		correctThinkingLevel?: ThinkingLevel,
+	): boolean {
+		if (!lastDecision?.active || !lastPrompt) return false;
+		if (turnCounter - lastDecisionTurn > 3) return false;
+		if (
+			correctRoute === lastDecision.route &&
+			(!correctThinkingLevel || correctThinkingLevel === lastDecision.thinkingLevel)
+		)
+			return false;
+		pendingImplicitLabel = {
+			source,
+			correctRoute,
+			correctThinkingLevel,
+			decision: lastDecision,
+			prompt: lastPrompt,
+			turn: lastDecisionTurn,
+		};
+		return true;
+	}
+
+	function flushImplicitMisroute(nextPrompt: string): void {
+		const pending = pendingImplicitLabel;
+		if (!pending) return;
+		pendingImplicitLabel = undefined;
+		if (turnCounter - pending.turn > 3 || !sameTaskPrompt(pending.prompt, nextPrompt)) return;
+		const key = `${pending.source}:${pending.turn}:${pending.decision.route}:${pending.correctRoute}:${pending.decision.thinkingLevel}:${pending.correctThinkingLevel ?? ""}`;
+		if (key === lastImplicitLabelKey) return;
+		lastImplicitLabelKey = key;
+		appendMisrouteHistory(misroutePath, {
+			timestamp: now().toISOString(),
+			sessionId,
+			source: pending.source,
+			prompt: pending.prompt,
+			wrongRoute: pending.decision.route,
+			correctRoute: pending.correctRoute,
+			wrongThinkingLevel: pending.decision.thinkingLevel,
+			correctThinkingLevel: pending.correctThinkingLevel,
+			rule: pending.decision.rule,
+			confidence: pending.decision.confidence,
+			signals: pending.decision.signals,
 		});
 	}
 
@@ -1939,6 +2040,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			thinkingLevel: activeTurnDecision?.thinkingLevel,
 			rule: activeTurnDecision?.rule,
 			confidence: activeTurnDecision?.confidence,
+			signals: activeTurnDecision?.signals,
 			...usageDelta,
 		});
 		if (cachedConfig) emitBudgetAlert(cachedConfig);
@@ -1949,6 +2051,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			thinkingLevel: activeTurnDecision?.thinkingLevel,
 			rule: activeTurnDecision?.rule,
 			confidence: activeTurnDecision?.confidence,
+			signals: activeTurnDecision?.signals,
 			sessionId,
 			cacheHitRate: cacheHitRate(usageTotals),
 		};
@@ -1988,6 +2091,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			return;
 		}
 		turnCounter += 1;
+		flushImplicitMisroute(event.prompt);
 		lastPrompt = event.prompt;
 		const previousDecision = lastDecision?.active ? lastDecision : undefined;
 		const decision = classifyPrompt(event.prompt, state.mode, config.extraKeywords, previousDecision);
@@ -2029,6 +2133,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			fallbackReason,
 		};
 		activeTurnDecision = lastDecision;
+		lastDecisionTurn = turnCounter;
 		applyToolProfile(decision.route, config);
 
 		let systemPrompt = event.systemPrompt;
@@ -2070,6 +2175,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					timestamp: now().toISOString(),
 					sessionId,
 					kind: "panel",
+					active: true,
 					route: decision.route,
 					model: result.model,
 					thinkingLevel,
@@ -2190,11 +2296,14 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				const record: RouterMisrouteRecord = {
 					timestamp: now().toISOString(),
 					sessionId,
+					source: "explicit",
 					prompt: lastPrompt,
 					wrongRoute: lastDecision.route,
 					correctRoute,
+					wrongThinkingLevel: lastDecision.thinkingLevel,
 					rule: lastDecision.rule,
 					confidence: lastDecision.confidence,
+					signals: lastDecision.signals,
 				};
 				if (appendMisrouteHistory(misroutePath, record)) {
 					ctx.ui.notify(
@@ -2307,6 +2416,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					ctx.ui.notify(`No model configured for ${route}.`, "warning");
 					return;
 				}
+				queueImplicitMisroute("implicit-effort", route, level);
 				specs[0].thinking = level;
 				persistRouteEffort(config, route, level);
 				ctx.ui.notify(`Router ${route} effort is now ${level}.`, "info");
@@ -2319,6 +2429,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					ctx.ui.notify(`No model available for ${route}: ${found.fallbackReason ?? "unknown"}`, "warning");
 					return;
 				}
+				queueImplicitMisroute("implicit-use", route, found.spec?.thinking);
 				await pi.setModel(found.model);
 				if (found.spec?.thinking) pi.setThinkingLevel(found.spec.thinking);
 				ctx.ui.notify(`Using ${modelKey(found.model)} for ${route}.`, "info");
@@ -2369,6 +2480,8 @@ export const _test = {
 	hasSynthesisDeepCue,
 	parseCostControlsConfig,
 	parseModelSpec,
+	promptSimilarity,
+	sameTaskPrompt,
 	parseSynthesisConfig,
 	resolveRouterConfig,
 	shouldEscalateThinking,
