@@ -43,6 +43,7 @@ const RULES = new Set<string>([
 	"reason-keywords",
 	"write-keywords",
 	"balanced-trivial",
+	"route-stickiness",
 	"default-general",
 ] satisfies RouterRuleId[]);
 const MAX_KNOWN_GAPS = 2;
@@ -200,9 +201,11 @@ describe("router eval corpus", () => {
 			confusion[result.expected][result.actual] += 1;
 			increment(ruleHistogram, result.rule);
 			if (result.knownGap && !result.routeAccepted) increment(knownGapsByRule, result.rule);
-			const bucket = confidenceBucket(result.confidence);
-			confidenceCalibration[bucket].count += 1;
-			if (result.routeAccepted) confidenceCalibration[bucket].accepted += 1;
+			if (!result.guardrails.length) {
+				const bucket = confidenceBucket(result.confidence);
+				confidenceCalibration[bucket].count += 1;
+				if (result.routeAccepted) confidenceCalibration[bucket].accepted += 1;
+			}
 		}
 		for (const bucket of Object.values(confidenceCalibration)) {
 			bucket.accuracy = pct(bucket.accepted, bucket.count);

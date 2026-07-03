@@ -58,6 +58,7 @@ PI_ROUTER_ACTIVE=1 pi "fix the failing tests"
 - `/router cost history` — show aggregate JSONL usage history without prompt text
 - `/router cost daily` — show recent daily JSONL cost rollups
 - `/router label <route>` — opt-in local misroute label for the last decision; stores that prompt in `misroutes.jsonl`
+- `npm run corpus:candidates` — draft eval-corpus candidates from local `misroutes.jsonl` for human review; it never edits `eval/corpus.json`
 - `/router doctor` — validate config, env overrides, model availability, cache env, cost controls, history path, and synthesis setup
 - `/router smoke` — opt-in live panel smoke test; requires `PI_ROUTER_LIVE=1`
 - `/router auto on|off`
@@ -114,7 +115,9 @@ Cost controls are conservative and use the same model families. Routing scores a
 
 `extraKeywords` adds local, config-owned route cues without forking the classifier. Project config overrides global config per route. Use this for personal service names, hostnames, or tool names that should route like an existing family.
 
-`/router label <route>` records that the previous router decision should have used another route. Labels are append-only JSONL at `~/.pi/agent/extensions/misroutes.jsonl`. Unlike aggregate usage history, misroute labels intentionally store the prompt text, but only after you run the label command.
+`/router label <route>` records that the previous router decision should have used another route. Labels are append-only JSONL at `~/.pi/agent/extensions/misroutes.jsonl`. Unlike aggregate usage history, misroute labels intentionally store the prompt text. Explicit labels use `source: "explicit"`; `/router use` and `/router effort` can queue implicit labels, written only after a same-task follow-up prompt passes the similarity guard.
+
+`npm run corpus:candidates -- --input ~/.pi/agent/extensions/misroutes.jsonl --output eval/corpus-candidates.json` dedupes local labels into draft corpus cases. Review and edit `expected` / `acceptable` / `tier` before manually copying any case into `eval/corpus.json`.
 
 Optional lean tool profiles can reduce context/tool overhead for low-risk routes without enabling tools the user disabled:
 

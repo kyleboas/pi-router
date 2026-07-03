@@ -1764,6 +1764,38 @@ function usageHistorySummary(records: RouterUsageRecord[], now: Date, days = 7):
 	];
 }
 
+function extraKeywordDoctorLines(
+	extraKeywords: Partial<Record<RouterRoute, string[]>>,
+	records: RouterUsageRecord[],
+	nowDate: Date,
+): string[] {
+	const lines: string[] = [];
+	const since = nowDate.getTime() - 14 * 24 * 60 * 60 * 1000;
+	for (const route of ROUTES) {
+		for (const keyword of extraKeywords[route] ?? []) {
+			const trimmed = keyword.trim();
+			if (!trimmed) continue;
+			const builtinMatches = Object.entries(ROUTE_FEATURES)
+				.filter(([, patterns]) => patterns.some((pattern) => pattern.test(trimmed.toLowerCase())))
+				.map(([builtinRoute]) => builtinRoute);
+			if (builtinMatches.length) {
+				lines.push(
+					`Warning: extraKeywords.${route} "${trimmed}" also matches built-in ${builtinMatches.join(",")} route keywords.`,
+				);
+			}
+			const signal = `extra:${trimmed}`;
+			const firedRecently = records.some((record) => {
+				const timestamp = Date.parse(record.timestamp);
+				return Number.isFinite(timestamp) && timestamp >= since && record.signals?.includes(signal);
+			});
+			if (!firedRecently) {
+				lines.push(`Warning: extraKeywords.${route} "${trimmed}" has not fired in the last 14 days of history.`);
+			}
+		}
+	}
+	return lines;
+}
+
 function contextUsageSummary(ctx: ExtensionContext): string {
 	const usage = typeof ctx.getContextUsage === "function" ? ctx.getContextUsage() : undefined;
 	if (!usage) return "Context: unknown";
@@ -2331,6 +2363,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 							.flatMap(([route, keywords]) => (keywords ?? []).map((keyword) => `${route}:${keyword}`))
 							.join(",") || "none"
 					}`,
+					...extraKeywordDoctorLines(config.extraKeywords, historyRecordsWithPending(), now()),
 					`Usage history: ${historyPath}`,
 					`Misroute labels: ${misroutePath}`,
 					contextUsageSummary(ctx),
@@ -2475,6 +2508,7 @@ export const _test = {
 	diagnoseModelCandidates,
 	explainRouteCandidates,
 	findRouteFeatureMatches,
+	extraKeywordDoctorLines,
 	formatAdvisoryContext,
 	getConfigPaths,
 	hasSynthesisDeepCue,

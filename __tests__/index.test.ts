@@ -175,6 +175,31 @@ describe("router helpers", () => {
 		}
 	});
 
+	it("warns on overlapping and stale extra keywords", () => {
+		const lines = _test.extraKeywordDoctorLines(
+			{ research: ["report"], code: ["bespoke"] },
+			[
+				{
+					timestamp: "2026-06-20T12:00:00.000Z",
+					kind: "turn",
+					active: true,
+					route: "code",
+					signals: ["extra:bespoke"],
+					input: 0,
+					output: 0,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: 0,
+					costTotal: 0,
+				},
+			],
+			new Date("2026-06-28T12:00:00.000Z"),
+		);
+		expect(lines.join("\n")).toContain('extraKeywords.research "report" also matches built-in write route keywords');
+		expect(lines.join("\n")).toContain('extraKeywords.research "report" has not fired');
+		expect(lines.join("\n")).not.toContain('extraKeywords.code "bespoke" has not fired');
+	});
+
 	it("parses synthesis config and keeps it disabled by default", () => {
 		const disabled = _test.parseSynthesisConfig();
 		expect(disabled.enabled).toBe(false);
