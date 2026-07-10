@@ -30,6 +30,9 @@
 		"lint:fix": "biome check --write .",
 		"check": "npm run lint && npm run typecheck && npm run test",
 		"corpus:candidates": "node scripts/corpus-candidates.mjs",
+		"eval": "vitest run __tests__/eval-corpus.test.ts",
+		"eval:feedback:build": "node scripts/build-feedback-eval.mjs",
+		"eval:feedback": "npm run eval:feedback:build && vitest run __tests__/feedback-eval.test.ts",
 		"eval:models": "node scripts/eval-models.mjs"
 	},
 	"keywords": [

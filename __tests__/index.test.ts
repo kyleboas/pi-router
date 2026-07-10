@@ -69,7 +69,13 @@ function mockContext(
 			isUsingOAuth: (model: { oauth?: boolean }) => model.oauth !== false,
 		},
 		signal: options.signal,
-		ui: { notify: vi.fn(), setStatus: vi.fn() },
+		ui: {
+			notify: vi.fn(),
+			setStatus: vi.fn(),
+			setWidget: vi.fn(),
+			select: vi.fn(),
+			theme: { fg: vi.fn((_color: string, text: string) => text) },
+		},
 	} as unknown as ExtensionContext;
 }
 
@@ -91,6 +97,15 @@ describe("router helpers", () => {
 		});
 		expect(classifyPrompt("write this in a cleaner style")).toMatchObject({ route: "write", thinkingLevel: "medium" });
 		expect(classifyPrompt("hi", "fast")).toMatchObject({ route: "fast", thinkingLevel: "minimal" });
+		expect(classifyPrompt("compare architecture tradeoffs", "strong")).toMatchObject({
+			route: "reason",
+			thinkingLevel: "xhigh",
+		});
+		expect(classifyPrompt("thanks", "strong")).toMatchObject({ route: "fast", thinkingLevel: "low" });
+		expect(classifyPrompt("handle this request", "strong")).toMatchObject({
+			route: "general",
+			thinkingLevel: "high",
+		});
 		expect(_test.DEFAULT_ROUTE_MODELS.write[0]).toBe("openai-codex/gpt-5.5:low");
 		expect(_test.DEFAULT_ROUTE_MODELS.general[0]).toBe("openai-codex/gpt-5.5:low");
 	});
@@ -515,6 +530,33 @@ describe("router extension", () => {
 		}
 	});
 
+	it("captures interactive route and effort feedback", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const misroutePath = join(cwd, "misroutes.jsonl");
+			const { pi, handlers, commands } = mockPi(true);
+			piRouter(pi, { homeDir: cwd, misrouteHistoryPath: misroutePath });
+			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
+			vi.mocked(ctx.ui.select).mockResolvedValueOnce("code").mockResolvedValueOnce("high");
+			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "write this in a cleaner style", systemPrompt: "base" },
+				ctx,
+			);
+			await commands.get(_test.ROUTER_COMMAND)?.handler("feedback", ctx as never);
+			const record = JSON.parse(readFileSync(misroutePath, "utf-8").trim());
+			expect(record).toMatchObject({
+				prompt: "write this in a cleaner style",
+				wrongRoute: "write",
+				correctRoute: "code",
+				correctThinkingLevel: "high",
+			});
+			expect(ctx.ui.select).toHaveBeenCalledTimes(2);
+		} finally {
+			cleanup();
+		}
+	});
+
 	it("records implicit use corrections after same-task follow-up", async () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
@@ -809,6 +851,15 @@ describe("router extension", () => {
 						ok: true,
 						text: `panel for ${request.decision.route}`,
 						latencyMs: 5,
+						costKnown: true,
+						usage: {
+							input: 100,
+							output: 20,
+							cacheRead: 0,
+							cacheWrite: 0,
+							totalTokens: 120,
+							costTotal: 0.012,
+						},
 					},
 				];
 			});
@@ -830,7 +881,10 @@ describe("router extension", () => {
 			expect(events.some((event) => (event as { okCount?: number }).okCount === 1)).toBe(true);
 			expect(events.at(-1)).toMatchObject({ active: true, route: "reason", panelActive: true, panelOkCount: 1 });
 			handlers.get("agent_end")?.({ type: "agent_end", messages: [] }, ctx);
-			expect(readFileSync(historyPath, "utf-8")).toContain('"kind":"panel"');
+			const history = readFileSync(historyPath, "utf-8");
+			expect(history).toContain('"kind":"panel"');
+			expect(history).toContain('"costKnown":true');
+			expect(history).toContain('"costTotal":0.012');
 		} finally {
 			cleanup();
 		}
@@ -1065,7 +1119,9 @@ describe("router extension", () => {
 			expect(result).toMatchObject({
 				systemPrompt: expect.stringContaining("Review and independently verify every worker report"),
 			});
-			expect(result).toMatchObject({ systemPrompt: expect.stringContaining("Router hint: route=code") });
+			expect(result).toMatchObject({
+				systemPrompt: expect.stringContaining("Router hint: mode=orchestration, route=code"),
+			});
 			expect(events.at(-1)).toMatchObject({ orchestrated: true, selectedModel: "openai-codex/gpt-5.6" });
 			(pi.getActiveTools as ReturnType<typeof vi.fn>).mockReturnValue([
 				"read",
@@ -1094,7 +1150,7 @@ describe("router extension", () => {
 		}
 	});
 
-	it("falls back to keyword routing only when router auto is active and the orchestration primary is unavailable", async () => {
+	it("uses route-selected primaries when auto routing and orchestration are both active", async () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
 			const configPath = join(cwd, ".pi", "extensions", "router.json");
@@ -1111,17 +1167,34 @@ describe("router extension", () => {
 			expect(inactive.pi.setModel).not.toHaveBeenCalled();
 			expect(inactive.events.at(-1)).toMatchObject({ active: false });
 
-			writeFileSync(configPath, JSON.stringify({ active: true, orchestration: { enabled: true } }));
+			writeFileSync(
+				configPath,
+				JSON.stringify({
+					active: true,
+					orchestration: { enabled: true },
+					toolProfiles: { code: ["read"] },
+					synthesis: {
+						enabled: true,
+						routes: {
+							code: { models: ["openai-codex/gpt-5.5:low"], minPromptChars: 1 },
+						},
+					},
+				}),
+			);
 			const active = mockPi(false);
-			piRouter(active.pi, { homeDir: cwd });
+			const panelRunner = vi.fn(async () => [
+				{ model: "openai-codex/gpt-5.5:low", ok: true, text: "panel advice", latencyMs: 1 },
+			]);
+			piRouter(active.pi, { homeDir: cwd, panelRunner });
 			await active.handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await active.handlers.get("before_agent_start")?.(
 				{ type: "before_agent_start", prompt: "fix the failing TypeScript tests", systemPrompt: "base" },
 				ctx,
 			);
 			expect(active.pi.setModel).toHaveBeenCalledWith(expect.objectContaining({ id: "gpt-5.5" }));
-			expect(active.events.at(-1)).toMatchObject({ active: true, route: "code" });
-			expect(active.events.at(-1)).not.toHaveProperty("orchestrated");
+			expect(active.pi.setActiveTools).toHaveBeenLastCalledWith(["read"]);
+			expect(panelRunner).toHaveBeenCalledOnce();
+			expect(active.events.at(-1)).toMatchObject({ active: true, route: "code", orchestrated: true });
 		} finally {
 			cleanup();
 		}

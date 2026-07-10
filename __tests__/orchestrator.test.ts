@@ -1,4 +1,5 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
@@ -8,6 +9,7 @@ import {
 	buildDelegateArgs,
 	createConsultTool,
 	createDelegateTool,
+	type DelegateActivityEvent,
 	type DelegateUsage,
 	type ResolvedOrchestrationConfig,
 	runDelegate,
@@ -154,12 +156,72 @@ describe("orchestrator", () => {
 			const result = await runDelegate({
 				spec: config.workers.small,
 				task: "do it",
-				tools: ["read", "write"],
+				tools: ["read"],
 				sessionPath,
 				cwd: root,
 				timeoutMs: 1000,
 			});
 			expect(result).toMatchObject({ ok: true, text: "done", filesTouched: ["made.txt"], usage });
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("refuses mutating workers when isolation cannot be established", async () => {
+		const { root, cleanup } = workspace();
+		try {
+			const result = await runDelegate({
+				spec: config.workers.small,
+				task: "mutate",
+				tools: ["bash"],
+				sessionPath: join(root, "delegate.jsonl"),
+				cwd: root,
+				timeoutMs: 5000,
+			});
+			expect(result).toMatchObject({ ok: false, costKnown: false });
+			expect(result.diagnostic).toContain("require a git worktree");
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("isolates mutating workers and applies a derived patch", async () => {
+		const { root, cleanup } = workspace();
+		try {
+			execFileSync("git", ["init", root]);
+			writeFileSync(join(root, "tracked.txt"), "before\n");
+			execFileSync("git", ["-C", root, "add", "tracked.txt"]);
+			execFileSync("git", [
+				"-C",
+				root,
+				"-c",
+				"user.name=test",
+				"-c",
+				"user.email=test@example.com",
+				"commit",
+				"-m",
+				"base",
+			]);
+			const bin = join(root, "fake-pi.sh");
+			writeFileSync(
+				bin,
+				`#!/usr/bin/env bash\nprintf 'after\\n' > tracked.txt\nprintf 'new\\n' > unreported.txt\necho '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}'\n`,
+			);
+			chmodSync(bin, 0o755);
+			process.env.PI_BIN = bin;
+			const result = await runDelegate({
+				spec: config.workers.small,
+				task: "mutate through bash",
+				tools: ["bash"],
+				sessionPath: join(root, "delegate.jsonl"),
+				cwd: root,
+				timeoutMs: 5000,
+			});
+			expect(result.ok).toBe(true);
+			expect(result.filesTouched).toEqual(["tracked.txt", "unreported.txt"]);
+			expect(readFileSync(join(root, "tracked.txt"), "utf8")).toBe("after\n");
+			expect(readFileSync(join(root, "unreported.txt"), "utf8")).toBe("new\n");
+			expect(result.filesTouched).not.toContain("fake-pi.sh");
 		} finally {
 			cleanup();
 		}
@@ -193,12 +255,14 @@ describe("orchestrator", () => {
 		const { root, cleanup } = workspace();
 		try {
 			const records: Array<Record<string, unknown>> = [];
+			const activities: DelegateActivityEvent[] = [];
 			let slots = 0;
 			const runner = vi.fn(async () => ({
 				ok: true,
 				text: "worker report",
 				filesTouched: ["a.ts"],
 				usage,
+				costKnown: true,
 				latencyMs: 12,
 			}));
 			const delegate = createDelegateTool({
@@ -210,16 +274,42 @@ describe("orchestrator", () => {
 				recordUsage: (record) => records.push(record),
 				runner,
 				isWorkerAvailable: () => true,
+				onDelegateActivity: (event) => activities.push(event),
 			});
 			const first = await delegate.execute(
 				"x",
-				{ task: "brief", worker: "small", tools: ["read"], expectation: "test" },
+				{
+					task: "brief",
+					worker: "small",
+					model: "openai-codex/gpt-5.6-terra",
+					thinking: "high",
+					tools: ["read"],
+					expectation: "test",
+				},
 				undefined,
 				undefined,
 				context(root),
 			);
 			expect(first.content[0]).toMatchObject({ text: expect.stringContaining("delegateId=d-") });
-			expect(records[0]).toMatchObject({ kind: "delegate", worker: "small", usage });
+			expect(records[0]).toMatchObject({
+				kind: "delegate",
+				worker: "small",
+				model: "openai-codex/gpt-5.6-terra:high",
+				usage,
+				costKnown: true,
+			});
+			expect(runner).toHaveBeenCalledWith(
+				expect.objectContaining({ spec: { provider: "openai-codex", id: "gpt-5.6-terra", thinking: "high" } }),
+			);
+			expect(activities.map((event) => event.phase)).toEqual(["start", "finish"]);
+			const rejected = await delegate.execute(
+				"x",
+				{ task: "brief", worker: "small", model: "other/not-approved", tools: ["read"] },
+				undefined,
+				undefined,
+				context(root),
+			);
+			expect(rejected.content[0]).toMatchObject({ text: expect.stringContaining("not approved") });
 			const blocked = await delegate.execute(
 				"x",
 				{ task: "brief", worker: "small", tools: ["read"] },
@@ -228,6 +318,27 @@ describe("orchestrator", () => {
 				context(root),
 			);
 			expect(blocked.content[0]).toMatchObject({ text: expect.stringContaining("concurrency") });
+			const budgetRunner = vi.fn();
+			const budgetBlocked = createDelegateTool({
+				getConfig: () => config,
+				getCast: () => ({ primary: config.primary, mid: config.workers.mid, small: config.workers.small }),
+				isEnabled: () => true,
+				acquireSlot: () => vi.fn(),
+				delegateDir: () => root,
+				recordUsage: vi.fn(),
+				runner: budgetRunner,
+				isWorkerAvailable: () => true,
+				canLaunch: () => "daily budget exhausted",
+			});
+			const budgetResult = await budgetBlocked.execute(
+				"x",
+				{ task: "brief", worker: "small", tools: ["read"] },
+				undefined,
+				undefined,
+				context(root),
+			);
+			expect(budgetResult.content[0]).toMatchObject({ text: expect.stringContaining("daily budget exhausted") });
+			expect(budgetRunner).not.toHaveBeenCalled();
 			const consultRunner = vi.fn(async () => ({
 				model: "claude-cli/claude-fable-5",
 				ok: true,
@@ -247,7 +358,12 @@ describe("orchestrator", () => {
 			});
 			await consult.execute("x", { question: "is this idiomatic?" }, undefined, undefined, context(root));
 			expect(consultRunner).toHaveBeenCalledWith(config.consultants.fable, "is this idiomatic?", 1000, undefined);
-			expect(records.at(-1)).toMatchObject({ kind: "consult", advisor: "fable", usage: { costTotal: 0 } });
+			expect(records.at(-1)).toMatchObject({
+				kind: "consult",
+				advisor: "fable",
+				costKnown: false,
+				usage: { costTotal: 0 },
+			});
 		} finally {
 			cleanup();
 		}

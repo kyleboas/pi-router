@@ -1,4 +1,4 @@
-import { execFile, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -10,6 +10,7 @@ import type {
 	ExtensionCommandContext,
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import { DelegateActivityWidget } from "./activity-widget.js";
 import {
 	type ConsultRunner,
 	createConsultTool,
@@ -22,6 +23,9 @@ import {
 	type ResolvedOrchestrationConfig,
 	runDelegate,
 } from "./orchestrator.js";
+import { buildPanelPrompt, formatAdvisoryContext, isAbortError, runPanelist, runSubprocessPanel } from "./panel.js";
+
+export { buildPanelPrompt, formatAdvisoryContext, runSubprocessPanel } from "./panel.js";
 
 export type RouterMode = "fast" | "balanced" | "strong";
 export type RouterRoute = "fast" | "code" | "reason" | "write" | "research" | "general";
@@ -95,7 +99,7 @@ export interface RouterTelemetry extends RouterDecision {
 	orchestrated?: boolean;
 }
 
-interface RouterModelSpec {
+export interface RouterModelSpec {
 	provider: string;
 	id: string;
 	thinking?: ThinkingLevel;
@@ -227,6 +231,8 @@ export interface RouterPanelResult {
 	text: string;
 	latencyMs: number;
 	diagnostic?: string;
+	usage?: DelegateUsage;
+	costKnown?: boolean;
 }
 
 export interface RouterPanelRequest {
@@ -258,9 +264,8 @@ const DEFAULT_PANEL_MAX_PROMPT_CHARS = 6000;
 const DEFAULT_PANEL_MIN_PROMPT_CHARS = 200;
 const DEFAULT_PANEL_MAX_TOTAL_CHARS = 12_000;
 const DEFAULT_PANEL_MAX_PANELISTS = 4;
-const PANEL_MAX_BUFFER = 1024 * 1024;
 const ORCHESTRATOR_CHARTER =
-	"Router orchestration charter: You are the primary. After establishing the primary diagnosis of multi-stage work, actively look for and delegate bounded, independent follow-up that materially accelerates implementation or verification. Urgency alone is not a reason to skip useful parallel delegation, but do not delegate trivial work or anything whose coordination would slow the critical path. Workers cannot see this conversation, so provide self-contained briefs with minimal tool allowlists. Keep design, ambiguity, conversation-context work, risky production actions, and final decisions yourself. Review and independently verify every worker report. Consult Fable only when the user explicitly asks.";
+	"Router orchestration charter: You are the primary. After establishing the primary diagnosis of multi-stage work, actively look for and delegate bounded, independent follow-up that materially accelerates implementation or verification. You choose the worker tier: use small for narrow searches, focused verification, and simple edits; use mid for multi-file implementation, nuanced review, or ambiguity. Urgency alone is not a reason to skip useful parallel delegation, but do not delegate trivial work or anything whose coordination would slow the critical path. Workers cannot see this conversation, so provide self-contained briefs with minimal tool allowlists. Keep design, ambiguity, conversation-context work, risky production actions, and final decisions yourself. Review and independently verify every worker report. Consult Fable only when the user explicitly asks.";
 
 const DEFAULT_ROUTE_MODELS: Record<RouterRoute, string[]> = {
 	fast: ["openai-codex/gpt-5.5:minimal", "openai-codex/gpt-5.5:low"],
@@ -1240,7 +1245,15 @@ function featureCandidate(
 		score += 6;
 	return routeCandidate(
 		route,
-		mode === "fast" && route !== "write" ? "medium" : route === "write" ? "medium" : "high",
+		mode === "strong"
+			? route === "write"
+				? "high"
+				: "xhigh"
+			: mode === "fast" && route !== "write"
+				? "medium"
+				: route === "write"
+					? "medium"
+					: "high",
 		route === "research"
 			? "research/production evidence task"
 			: route === "code"
@@ -1249,6 +1262,7 @@ function featureCandidate(
 					? "reasoning/planning task"
 					: "writing task",
 		[
+			...(mode === "strong" ? ["strong-mode"] : []),
 			route === "research"
 				? "research-or-production"
 				: route === "code"
@@ -1345,9 +1359,13 @@ export function explainRouteCandidates(
 		candidates.push(
 			routeCandidate(
 				"fast",
-				"minimal",
+				mode === "strong" ? "low" : "minimal",
 				fastExtra.length ? "configured fast keyword" : "short simple prompt",
-				[...(looksTrivial(prompt) ? ["trivial-prompt"] : []), ...extraKeywordSignals(fastExtra)],
+				[
+					...(mode === "strong" ? ["strong-mode"] : []),
+					...(looksTrivial(prompt) ? ["trivial-prompt"] : []),
+					...extraKeywordSignals(fastExtra),
+				],
 				0.85,
 				undefined,
 				"balanced-trivial",
@@ -1360,9 +1378,9 @@ export function explainRouteCandidates(
 		candidates.push(
 			routeCandidate(
 				"general",
-				"medium",
+				mode === "strong" ? "high" : "medium",
 				"configured general keyword",
-				extraKeywordSignals(generalExtra),
+				[...(mode === "strong" ? ["strong-mode"] : []), ...extraKeywordSignals(generalExtra)],
 				0.8,
 				undefined,
 				"general-keywords",
@@ -1372,7 +1390,16 @@ export function explainRouteCandidates(
 	}
 	if (!candidates.length) {
 		candidates.push(
-			routeCandidate("general", "medium", "general task", ["default-general"], 0.55, undefined, "default-general", 1),
+			routeCandidate(
+				"general",
+				mode === "strong" ? "high" : "medium",
+				"general task",
+				[...(mode === "strong" ? ["strong-mode"] : []), "default-general"],
+				0.55,
+				undefined,
+				"default-general",
+				1,
+			),
 		);
 	}
 	return sortAndCalibrateCandidates(candidates);
@@ -1492,9 +1519,10 @@ export function applyCostControlledThinking(
 	if (costControls.maxDefaultThinking && !shouldEscalateThinking(prompt, decision)) {
 		level = minThinking(level, costControls.maxDefaultThinking);
 	}
-	if (decision.route === "code" && looksLowRiskCodePrompt(prompt)) {
+	if (decision.route === "code" && looksLowRiskCodePrompt(prompt) && decision.thinkingLevel !== "xhigh") {
 		level = minThinking(level, "medium");
 	}
+	if (decision.signals?.includes("strong-mode")) level = maxThinking(level, decision.thinkingLevel);
 	if (shouldEscalateThinking(prompt, decision)) {
 		level = maxThinking(level, decision.thinkingLevel);
 	}
@@ -1660,130 +1688,6 @@ export function shouldRunSynthesis(
 	return spec;
 }
 
-export function buildPanelPrompt(
-	prompt: string,
-	decision: RouterDecision,
-	maxChars = DEFAULT_PANEL_MAX_PROMPT_CHARS,
-): string {
-	const trimmedPrompt = prompt.length > maxChars ? `${prompt.slice(0, maxChars)}…` : prompt;
-	return `You are one advisory panelist for Pi's router extension. Give an independent, practical perspective for the primary Pi agent.\n\nImportant constraints:\n- You are read-only and must not assume access to the current repo, tools, files, session history, or local policies unless included below.\n- Call out uncertainty and assumptions.\n- Focus on risks, tradeoffs, likely approach, and checks the primary agent should perform.\n- Be concise but substantive.\n\nRouter route: ${decision.route}\nRouter reason: ${decision.reason}\n\n<user_prompt>\n${trimmedPrompt}\n</user_prompt>`;
-}
-
-function truncateText(text: string, maxChars: number): string {
-	return text.length > maxChars ? `${text.slice(0, maxChars)}…` : text;
-}
-
-function panelFailureDiagnostic(err: Error | null, stderr: string, stdout: string): string {
-	const parts: string[] = [];
-	const anyErr = err as (Error & { code?: unknown; signal?: unknown; killed?: unknown }) | null;
-	if (err?.message) parts.push(`error: ${err.message}`);
-	if (anyErr?.code !== undefined) parts.push(`code: ${String(anyErr.code)}`);
-	if (anyErr?.signal !== undefined) parts.push(`signal: ${String(anyErr.signal)}`);
-	if (anyErr?.killed !== undefined) parts.push(`killed: ${String(anyErr.killed)}`);
-	if (stderr.trim()) parts.push(`stderr: ${truncateText(stderr.trim(), 2000)}`);
-	if (stdout.trim()) parts.push(`stdout: ${truncateText(stdout.trim(), 500)}`);
-	return parts.join("\n") || "no stdout returned";
-}
-
-function claudeModelId(spec: RouterModelSpec): string {
-	if (/^opus(?:-4[.-]?8)?$/i.test(spec.id)) return "claude-opus-4-8";
-	return spec.id;
-}
-
-function panelCommand(spec: RouterModelSpec, prompt: string): { cmd: string; args: string[] } {
-	if (spec.provider === "claude-cli") {
-		return {
-			cmd: process.env.CLAUDE_BIN || "claude",
-			args: ["--model", claudeModelId(spec), "--tools", "none", "-p", prompt],
-		};
-	}
-	return {
-		cmd: process.env.PI_BIN || "pi",
-		args: [
-			"-p",
-			"--provider",
-			spec.provider,
-			"--model",
-			`${spec.id}${spec.thinking ? `:${spec.thinking}` : ""}`,
-			"--no-tools",
-			"--no-extensions",
-			"--no-session",
-			"--no-context-files",
-			prompt,
-		],
-	};
-}
-
-function isAbortError(error: unknown): boolean {
-	return Boolean(
-		error instanceof Error &&
-			(error.name === "AbortError" || ("code" in error && (error as { code?: unknown }).code === "ABORT_ERR")),
-	);
-}
-
-function abortedPanelResult(spec: RouterModelSpec, started: number): RouterPanelResult {
-	const diagnostic = "cancelled by abort signal";
-	return { model: modelSpecKey(spec), ok: false, text: diagnostic, diagnostic, latencyMs: Date.now() - started };
-}
-
-function runPanelist(
-	spec: RouterModelSpec,
-	prompt: string,
-	timeoutMs: number,
-	signal?: AbortSignal,
-): Promise<RouterPanelResult> {
-	const started = Date.now();
-	if (signal?.aborted) return Promise.resolve(abortedPanelResult(spec, started));
-	const { cmd, args } = panelCommand(spec, prompt);
-	return new Promise((resolve) => {
-		try {
-			execFile(cmd, args, { timeout: timeoutMs, maxBuffer: PANEL_MAX_BUFFER, signal }, (err, stdout, stderr) => {
-				const latencyMs = Date.now() - started;
-				if (isAbortError(err)) {
-					resolve(abortedPanelResult(spec, started));
-					return;
-				}
-				const text = stdout.trim();
-				if (err || !text) {
-					const diagnostic = panelFailureDiagnostic(err, stderr, stdout);
-					resolve({ model: modelSpecKey(spec), ok: false, text: diagnostic, diagnostic, latencyMs });
-					return;
-				}
-				resolve({ model: modelSpecKey(spec), ok: true, text, latencyMs });
-			});
-		} catch (error) {
-			if (isAbortError(error)) {
-				resolve(abortedPanelResult(spec, started));
-				return;
-			}
-			const diagnostic = error instanceof Error ? error.message : String(error);
-			resolve({ model: modelSpecKey(spec), ok: false, text: diagnostic, diagnostic, latencyMs: Date.now() - started });
-		}
-	});
-}
-
-export async function runSubprocessPanel(request: RouterPanelRequest): Promise<RouterPanelResult[]> {
-	const prompt = buildPanelPrompt(request.prompt, request.decision, request.spec.maxPromptChars);
-	const models = request.spec.models.slice(0, request.spec.maxPanelists);
-	return Promise.all(models.map((spec) => runPanelist(spec, prompt, request.spec.timeoutMs, request.signal)));
-}
-
-export function formatAdvisoryContext(
-	results: RouterPanelResult[],
-	decision: RouterDecision,
-	maxTotalChars = DEFAULT_PANEL_MAX_TOTAL_CHARS,
-): string | undefined {
-	const successful = results.filter((result) => result.ok && result.text.trim());
-	if (!successful.length) return undefined;
-	const blocks = successful
-		.map(
-			(result) =>
-				`<router-panel-perspective model="${result.model}" latency_ms="${result.latencyMs}">\n${truncateText(result.text.trim(), 6000)}\n</router-panel-perspective>`,
-		)
-		.join("\n\n");
-	return `Router advisory synthesis context for route "${decision.route}". These are external panel perspectives fetched before this turn. They are NOT ground truth, may lack repo/session/tool context, and must be verified against the actual conversation, files, tools, and user instructions before acting. Use them to find blind spots; ignore them when they conflict with concrete context.\n\n${truncateText(blocks, maxTotalChars)}`;
-}
-
 export function describeDecision(decision: RouterTelemetry): string {
 	if (!decision.active) return "Router auto is off.";
 	const selected = decision.selectedModel ?? decision.anchorModel ?? "current model";
@@ -1867,6 +1771,7 @@ interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 	shadowRule?: RouterRuleId;
 	shadowConfidence?: number;
 	shadowEstimatedCacheImpact?: "same-family" | "family-switch" | "unknown";
+	costKnown?: boolean;
 }
 
 interface RouterMisrouteRecord {
@@ -1986,6 +1891,7 @@ function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
 				typeof parsed.shadowRule === "string" && isRouterRuleId(parsed.shadowRule) ? parsed.shadowRule : undefined,
 			shadowConfidence:
 				typeof parsed.shadowConfidence === "number" ? Math.max(0, Math.min(1, parsed.shadowConfidence)) : undefined,
+			costKnown: typeof parsed.costKnown === "boolean" ? parsed.costKnown : undefined,
 			shadowEstimatedCacheImpact:
 				parsed.shadowEstimatedCacheImpact === "same-family" ||
 				parsed.shadowEstimatedCacheImpact === "family-switch" ||
@@ -2149,10 +2055,12 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 	let delegatesRunning = 0;
 	let delegateCount = 0;
 	let consultCount = 0;
+	let unknownCostCalls = 0;
 	let lastDelegation:
 		| { model: string; ok: boolean; usage: DelegateUsage; delegateId?: string; worker?: "mid" | "small" }
 		| undefined;
 	let toolRestore: string[] | undefined;
+	const delegateActivityWidget = new DelegateActivityWidget();
 
 	function refreshConfig(ctx: ExtensionContext): ResolvedRouterConfig {
 		cachedConfig = resolveRouterConfig(ctx.cwd || process.cwd(), homeDir);
@@ -2449,6 +2357,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		delegateId?: string;
 		worker?: "mid" | "small";
 		advisor?: string;
+		costKnown?: boolean;
 	}): void {
 		addUsageTotals(usageTotals, record.usage, false);
 		const modelTotal = usageByModel.get(record.model) ?? emptyUsageTotals();
@@ -2465,8 +2374,10 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			delegateId: record.delegateId,
 			worker: record.worker,
 			advisor: record.advisor,
+			costKnown: record.costKnown,
 			...record.usage,
 		});
+		if (record.costKnown === false) unknownCostCalls += 1;
 		if (record.kind === "delegate") {
 			delegateCount += 1;
 			lastDelegation = record;
@@ -2474,6 +2385,44 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			consultCount += 1;
 		}
 		if (cachedConfig) emitBudgetAlert(cachedConfig);
+	}
+
+	function effectiveControlMode(): "off" | "routing" | "orchestration" | "hybrid" {
+		if (state.active && state.orchestrationActive) return "hybrid";
+		if (state.active) return "routing";
+		if (state.orchestrationActive) return "orchestration";
+		return "off";
+	}
+
+	function recordPanelUsage(result: RouterPanelResult, decision: RouterDecision, thinkingLevel: ThinkingLevel): void {
+		const panelUsage = result.usage ?? {
+			input: 0,
+			output: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			totalTokens: 0,
+			costTotal: 0,
+		};
+		addUsageTotals(usageTotals, panelUsage, false);
+		const modelTotal = usageByModel.get(result.model) ?? emptyUsageTotals();
+		addUsageTotals(modelTotal, panelUsage, false);
+		usageByModel.set(result.model, modelTotal);
+		if (!result.costKnown) unknownCostCalls += 1;
+		pendingUsageRecords.push({
+			timestamp: now().toISOString(),
+			sessionId,
+			kind: "panel",
+			active: true,
+			route: decision.route,
+			model: result.model,
+			thinkingLevel,
+			rule: decision.rule,
+			confidence: decision.confidence,
+			panelOk: result.ok,
+			panelLatencyMs: result.latencyMs,
+			costKnown: result.costKnown ?? false,
+			...panelUsage,
+		});
 	}
 
 	function orchestrationStatusLine(): string {
@@ -2486,7 +2435,12 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 
 	function costSummaryLines(ctx?: ExtensionContext): string[] {
 		const config = cachedConfig ?? (ctx ? refreshConfig(ctx) : resolveRouterConfig(process.cwd(), homeDir));
-		const lines = ["Router cost", formatUsageTotals("Total", usageTotals), formatBudgetStatus(config)];
+		const lines = [
+			"Router cost",
+			formatUsageTotals("Total", usageTotals),
+			...(unknownCostCalls ? [`Unpriced external calls: ${unknownCostCalls} (reported total is a lower bound)`] : []),
+			formatBudgetStatus(config),
+		];
 		if (latestBudgetAlert) lines.push(latestBudgetAlert);
 		if (ctx) lines.push(contextUsageSummary(ctx));
 		if (usageByRoute.size) {
@@ -2509,18 +2463,23 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		const previousDecision = lastDecision?.active ? lastDecision : undefined;
 		const decision = classifyPrompt(event.prompt, state.mode, config.extraKeywords, previousDecision);
 		const cast = orchestrationCast(ctx, config);
-		const found = findAvailableModel(ctx, [cast.primary], config.requireOAuth, true);
+		const primaryCandidates = state.active ? config.routes[decision.route] : [cast.primary];
+		const found = findAvailableModel(ctx, primaryCandidates, config.requireOAuth, true);
 		if (!found.model) return "fallthrough";
 		turnCounter += 1;
 		flushImplicitMisroute(event.prompt);
 		lastPrompt = event.prompt;
 		let selectedModel = ctx.model ? modelKey(ctx.model) : undefined;
-		const thinkingLevel = applyCostControlledThinking(
+		let thinkingLevel = applyCostControlledThinking(
 			event.prompt,
 			decision,
 			found.spec?.thinking ?? decision.thinkingLevel,
 			config.costControls,
 		);
+		const currentBudgetStatus = budgetStatus(config);
+		if (currentBudgetStatus.overBudget && config.costControls.maxThinkingOverBudget) {
+			thinkingLevel = minThinking(thinkingLevel, config.costControls.maxThinkingOverBudget);
+		}
 		state.routerSettingModel = true;
 		try {
 			const ok = await pi.setModel(found.model);
@@ -2542,7 +2501,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		lastDecisionTurn = turnCounter;
 		pi.events.emit("router:decision", lastDecision);
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${ORCHESTRATOR_CHARTER}\nRouter hint: route=${decision.route}, signals=${decision.signals?.join(",") || "none"}`,
+			systemPrompt: `${event.systemPrompt}\n\n${ORCHESTRATOR_CHARTER}\nRouter hint: mode=${state.active ? "hybrid" : "orchestration"}, route=${decision.route}, signals=${decision.signals?.join(",") || "none"}`,
 		};
 	}
 
@@ -2551,8 +2510,10 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		ctx: ExtensionContext,
 	): Promise<{ systemPrompt?: string } | undefined> {
 		const config = cachedConfig ?? refreshConfig(ctx);
-		const orchestrated = await routeOrchestrated(event, ctx, config);
-		if (orchestrated !== "fallthrough") return orchestrated;
+		if (state.orchestrationActive && !state.active) {
+			const orchestrated = await routeOrchestrated(event, ctx, config);
+			if (orchestrated !== "fallthrough") return orchestrated;
+		}
 		if (!state.active) {
 			lastDecision = {
 				active: false,
@@ -2606,6 +2567,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			anchorModel: state.anchorModel,
 			selectedModel,
 			fallbackReason,
+			orchestrated: state.orchestrationActive || undefined,
 		};
 		activeTurnDecision = lastDecision;
 		lastDecisionTurn = turnCounter;
@@ -2638,7 +2600,9 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		}
 		applyToolProfile(decision.route, config);
 
-		let systemPrompt = event.systemPrompt;
+		let systemPrompt = state.orchestrationActive
+			? `${event.systemPrompt}\n\n${ORCHESTRATOR_CHARTER}\nRouter hint: mode=hybrid, route=${decision.route}, signals=${decision.signals?.join(",") || "none"}`
+			: event.systemPrompt;
 		const panelSpec = shouldRunSynthesis(decision, config, event.prompt, {
 			budgetOver: currentBudgetStatus.overBudget,
 			turnsSinceSynthesis: turnCounter - lastSynthesisTurn,
@@ -2672,27 +2636,8 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				ctx.ui.setStatus("pi-router", undefined);
 			}
 			const panelLatencyMs = Date.now() - started;
-			for (const result of results) {
-				pendingUsageRecords.push({
-					timestamp: now().toISOString(),
-					sessionId,
-					kind: "panel",
-					active: true,
-					route: decision.route,
-					model: result.model,
-					thinkingLevel,
-					rule: decision.rule,
-					confidence: decision.confidence,
-					panelOk: result.ok,
-					panelLatencyMs: result.latencyMs,
-					input: 0,
-					output: 0,
-					cacheRead: 0,
-					cacheWrite: 0,
-					totalTokens: 0,
-					costTotal: 0,
-				});
-			}
+			for (const result of results) recordPanelUsage(result, decision, thinkingLevel);
+			emitBudgetAlert(config);
 			const okCount = results.filter((result) => result.ok).length;
 			const failCount = results.length - okCount;
 			const panelEvent = {
@@ -2739,6 +2684,11 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			runner: delegateRunner,
 			isWorkerAvailable: (ctx, spec) =>
 				Boolean(findAvailableModel(ctx, [spec], cachedConfig?.requireOAuth ?? true).model),
+			canLaunch: () => {
+				const status = budgetStatus();
+				return status.overBudget ? `router budget is exhausted (${status.message})` : undefined;
+			},
+			onDelegateActivity: (event, ctx) => delegateActivityWidget.update(event, ctx),
 		}),
 	);
 	pi.registerTool(
@@ -2752,6 +2702,10 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			runner: delegateRunner,
 			consultRunner,
 			isWorkerAvailable: () => true,
+			canLaunch: () => {
+				const status = budgetStatus();
+				return status.overBudget ? `router budget is exhausted (${status.message})` : undefined;
+			},
 		}),
 	);
 
@@ -2763,7 +2717,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 
 	pi.registerCommand(ROUTER_COMMAND, {
 		description:
-			"Inspect or control model routing: on | off | status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+			"Inspect or control model routing: on | off | status | cost [history|daily] | feedback | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			const config = refreshConfig(ctx);
 			const [first, second, ...rest] = args.trim().split(/\s+/).filter(Boolean);
@@ -2774,7 +2728,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				});
 				ctx.ui.notify(
 					[
-						`${state.active ? "Router auto is on" : "Router auto is off"}. Mode: ${state.mode}. Anchor: ${state.anchorModel ?? "none"}. Synthesis: ${synthesisRoutes.length ? synthesisRoutes.join(",") : "off"}. Orchestration: ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}`,
+						`Control: ${effectiveControlMode()}. Auto routing: ${state.active ? "on" : "off"}. Effort mode: ${state.mode}. Anchor: ${state.anchorModel ?? "none"}. Synthesis: ${synthesisRoutes.length ? synthesisRoutes.join(",") : "off"}. Orchestration tools: ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}`,
 						lastDecision ? describeDecision(lastDecision) : "No decision yet.",
 						orchestrationStatusLine(),
 						formatUsageTotals("Cost", usageTotals),
@@ -2804,7 +2758,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				}
 				ctx.ui.notify(
 					enable
-						? `Router is on: orchestration active (${orchestrationCastSummary(ctx, config)}) with keyword routing as fallback.`
+						? `Router is on in hybrid mode: routes select the primary model and orchestration tools are available. ${orchestrationCastSummary(ctx, config)}`
 						: "Router is off: model selection is back to you.",
 					"info",
 				);
@@ -2813,7 +2767,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			if (first === "orchestrate") {
 				if (!second || second === "status") {
 					ctx.ui.notify(
-						`Router orchestration is ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}\n${orchestrationStatusLine()}`,
+						`Router orchestration is ${state.orchestrationActive ? "on" : "off"}; effective control=${effectiveControlMode()}. ${orchestrationCastSummary(ctx, config)}\n${orchestrationStatusLine()}`,
 						"info",
 					);
 					return;
@@ -2829,7 +2783,10 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					orchestration.enabled = state.orchestrationActive;
 					configFile.orchestration = orchestration as RouterOrchestrationConfigFile;
 				});
-				ctx.ui.notify(`Router orchestration is ${state.orchestrationActive ? "on" : "off"}.`, "info");
+				ctx.ui.notify(
+					`Router orchestration is ${state.orchestrationActive ? "on" : "off"}; effective control=${effectiveControlMode()}.`,
+					"info",
+				);
 				return;
 			}
 			if (first === "auto" && (second === "on" || second === "off")) {
@@ -2841,7 +2798,10 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					const model = anchor ? ctx.modelRegistry.find(anchor.provider, anchor.id) : undefined;
 					if (model) await pi.setModel(model);
 				}
-				ctx.ui.notify(`Router auto is ${state.active ? "on" : "off"}.`, "info");
+				ctx.ui.notify(
+					`Router auto is ${state.active ? "on" : "off"}; effective control=${effectiveControlMode()}.`,
+					"info",
+				);
 				return;
 			}
 			if (first === "mode" && normalizeMode(second)) {
@@ -2865,6 +2825,38 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					return;
 				}
 				ctx.ui.notify(costSummaryLines(ctx).join("\n"), "info");
+				return;
+			}
+			if (first === "feedback") {
+				if (!lastDecision?.active || !lastPrompt) {
+					ctx.ui.notify("No active router decision is available to correct yet.", "warning");
+					return;
+				}
+				const correctRoute = await ctx.ui.select("Correct route", ROUTES);
+				if (!correctRoute || !isRouterRoute(correctRoute)) return;
+				const effort = await ctx.ui.select("Correct effort", ["keep current", ...THINKING_ORDER]);
+				if (!effort) return;
+				const correctThinkingLevel = effort === "keep current" ? undefined : normalizeThinkingLevel(effort);
+				const record: RouterMisrouteRecord = {
+					timestamp: now().toISOString(),
+					sessionId,
+					source: "explicit",
+					prompt: lastPrompt,
+					wrongRoute: lastDecision.route,
+					correctRoute,
+					wrongThinkingLevel: lastDecision.thinkingLevel,
+					correctThinkingLevel,
+					rule: lastDecision.rule,
+					confidence: lastDecision.confidence,
+					signals: lastDecision.signals,
+				};
+				const saved = appendMisrouteHistory(misroutePath, record);
+				ctx.ui.notify(
+					saved
+						? `Feedback saved locally: ${lastDecision.route} -> ${correctRoute}${correctThinkingLevel ? `, effort=${correctThinkingLevel}` : ""}.`
+						: `Failed to save feedback at ${misroutePath}.`,
+					saved ? "info" : "warning",
+				);
 				return;
 			}
 			if (first === "label") {
@@ -2961,14 +2953,20 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					ctx.ui.notify("Router smoke is opt-in. Set PI_ROUTER_LIVE=1, then run /router smoke.", "warning");
 					return;
 				}
+				const smokeBudget = budgetStatus(config);
+				if (smokeBudget.overBudget) {
+					ctx.ui.notify(`Router smoke blocked: budget exhausted (${smokeBudget.message}).`, "warning");
+					return;
+				}
 				const smokeRoutes = ROUTES.filter((route) => config.synthesis.enabled && config.synthesis.routes[route]);
 				const lines = ["Router smoke"];
 				for (const route of smokeRoutes) {
 					const spec = config.synthesis.routes[route];
 					if (!spec) continue;
+					const smokeDecision = routeDecision(route, "minimal", "router live smoke", ["smoke"], 1);
 					const results = await panelRunner({
 						prompt: "Router live smoke test. Reply with ok.",
-						decision: routeDecision(route, "minimal", "router live smoke", ["smoke"], 1),
+						decision: smokeDecision,
 						signal: ctx.signal,
 						spec: {
 							...spec,
@@ -2976,6 +2974,8 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 							maxPanelists: Math.min(spec.maxPanelists, 1),
 						},
 					});
+					for (const result of results) recordPanelUsage(result, smokeDecision, "minimal");
+					emitBudgetAlert(config);
 					const ok = results.filter((result) => result.ok).length;
 					lines.push(
 						`${route}: ${ok}/${results.length} ok; ${results.map((result) => `${result.model}:${result.latencyMs}ms`).join(",")}`,
@@ -3035,7 +3035,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				return;
 			}
 			ctx.ui.notify(
-				"Usage: /router on | off | status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+				"Usage: /router on | off | status | cost [history|daily] | feedback | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 				"warning",
 			);
 		},
@@ -3055,9 +3055,10 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		const costEvent = isRecord(event) ? recordUsage(event.message) : undefined;
 		if (costEvent) pi.events.emit("router:cost", costEvent);
 	});
-	pi.on("agent_end", () => {
+	pi.on("agent_end", (_event, ctx) => {
 		flushUsageHistory();
 		restoreToolProfile();
+		delegateActivityWidget.clear(ctx);
 		activeTurnDecision = undefined;
 	});
 }

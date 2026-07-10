@@ -58,11 +58,11 @@
     "reason-keywords": 1
   },
   "marginBuckets": {
-    "negative": 20,
+    "negative": 0,
     "tie": 0,
-    "0.01-0.05": 3,
-    "0.06-0.10": 4,
-    ">0.10": 9,
+    "0.01-0.05": 0,
+    "0.06-0.10": 0,
+    ">0.10": 36,
     "none": 0
   },
   "selectedRuleHistogram": {
@@ -83,6 +83,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.97,
+      "winnerScore": 97,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "code+write",
@@ -93,14 +94,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 59,
         "confidence": 0.777
       },
-      "margin": 0.193,
+      "margin": 38,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.97,
+          "score": 97,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -108,6 +111,7 @@
         },
         {
           "confidence": 0.777,
+          "score": 59,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -123,6 +127,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.97,
+      "winnerScore": 82,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "research+write",
@@ -133,14 +138,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 59,
         "confidence": 0.777
       },
-      "margin": 0.193,
+      "margin": 23,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.97,
+          "score": 82,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -148,6 +155,7 @@
         },
         {
           "confidence": 0.777,
+          "score": 59,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -163,6 +171,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.97,
+      "winnerScore": 82,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "research+write",
@@ -173,14 +182,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 59,
         "confidence": 0.777
       },
-      "margin": 0.193,
+      "margin": 23,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.97,
+          "score": 82,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -188,6 +199,7 @@
         },
         {
           "confidence": 0.777,
+          "score": 59,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -203,6 +215,7 @@
       "actual": "write",
       "selectedRule": "write-keywords",
       "winnerConfidence": 0.735,
+      "winnerScore": 66,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "fast+write",
@@ -213,14 +226,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.063,
-      "marginBucket": "negative",
+      "margin": 2,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.735,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -228,6 +243,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -244,6 +260,7 @@
       "actual": "general",
       "selectedRule": "verification-guard",
       "winnerConfidence": 0.95,
+      "winnerScore": 120,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "general+research",
@@ -254,14 +271,16 @@
       "runnerUp": {
         "rule": "research-keywords",
         "route": "research",
+        "score": 73,
         "confidence": 0.837
       },
-      "margin": 0.113,
+      "margin": 47,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.95,
+          "score": 120,
           "reason": "false-premise/hallucination guard task",
           "route": "general",
           "rule": "verification-guard",
@@ -269,6 +288,7 @@
         },
         {
           "confidence": 0.837,
+          "score": 73,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -284,6 +304,7 @@
       "actual": "general",
       "selectedRule": "policy-guard",
       "winnerConfidence": 0.95,
+      "winnerScore": 118,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "code+general",
@@ -294,14 +315,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 70,
         "confidence": 0.824
       },
-      "margin": 0.126,
+      "margin": 48,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.95,
+          "score": 118,
           "reason": "policy/general pi guidance task",
           "route": "general",
           "rule": "policy-guard",
@@ -309,6 +332,7 @@
         },
         {
           "confidence": 0.824,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -324,6 +348,7 @@
       "actual": "general",
       "selectedRule": "verification-guard",
       "winnerConfidence": 0.95,
+      "winnerScore": 120,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "fast+general+write",
@@ -335,14 +360,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": 0.143,
+      "margin": 54,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.95,
+          "score": 120,
           "reason": "false-premise/hallucination guard task",
           "route": "general",
           "rule": "verification-guard",
@@ -350,6 +377,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -357,6 +385,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -372,6 +401,7 @@
       "actual": "general",
       "selectedRule": "verification-guard",
       "winnerConfidence": 0.95,
+      "winnerScore": 120,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "fast+general+write",
@@ -383,14 +413,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": 0.143,
+      "margin": 54,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.95,
+          "score": 120,
           "reason": "false-premise/hallucination guard task",
           "route": "general",
           "rule": "verification-guard",
@@ -398,6 +430,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -405,6 +438,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -420,6 +454,7 @@
       "actual": "general",
       "selectedRule": "verification-guard",
       "winnerConfidence": 0.95,
+      "winnerScore": 120,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "code+fast+general",
@@ -431,14 +466,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": 0.152,
+      "margin": 56,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.95,
+          "score": 120,
           "reason": "false-premise/hallucination guard task",
           "route": "general",
           "rule": "verification-guard",
@@ -446,6 +483,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -453,6 +491,7 @@
         },
         {
           "confidence": 0.794,
+          "score": 63,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -470,6 +509,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.875,
+      "winnerScore": 82,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+research",
@@ -480,14 +520,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 70,
         "confidence": 0.824
       },
-      "margin": 0.051,
-      "marginBucket": "0.06-0.10",
+      "margin": 12,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.875,
+          "score": 82,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -495,6 +537,7 @@
         },
         {
           "confidence": 0.824,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -511,6 +554,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.833,
+      "winnerScore": 73,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "code+research",
@@ -521,14 +565,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 63,
         "confidence": 0.794
       },
-      "margin": 0.039,
-      "marginBucket": "0.01-0.05",
+      "margin": 10,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.833,
+          "score": 73,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -536,6 +582,7 @@
         },
         {
           "confidence": 0.794,
+          "score": 63,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -554,6 +601,7 @@
       "actual": "reason",
       "selectedRule": "reason-keywords",
       "winnerConfidence": 0.728,
+      "winnerScore": 67,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "reason+write",
@@ -564,14 +612,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": -0.079,
-      "marginBucket": "negative",
+      "margin": 1,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.728,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -579,6 +629,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -597,6 +648,7 @@
       "actual": "reason",
       "selectedRule": "reason-keywords",
       "winnerConfidence": 0.728,
+      "winnerScore": 67,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "reason+write",
@@ -607,14 +659,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": -0.079,
-      "marginBucket": "negative",
+      "margin": 1,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.728,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -622,6 +676,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -639,6 +694,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.785,
+      "winnerScore": 70,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "code+fast",
@@ -649,14 +705,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.013,
-      "marginBucket": "negative",
+      "margin": 6,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.785,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -664,6 +722,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -681,6 +740,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.755,
+      "winnerScore": 70,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "code+reason+write",
@@ -692,14 +752,16 @@
       "runnerUp": {
         "rule": "reason-keywords",
         "route": "reason",
+        "score": 67,
         "confidence": 0.811
       },
-      "margin": -0.056,
-      "marginBucket": "negative",
+      "margin": 3,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.755,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -707,6 +769,7 @@
         },
         {
           "confidence": 0.811,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -714,6 +777,7 @@
         },
         {
           "confidence": 0.777,
+          "score": 59,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -729,6 +793,7 @@
       "actual": "reason",
       "selectedRule": "reason-keywords",
       "winnerConfidence": 0.748,
+      "winnerScore": 67,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "fast+reason",
@@ -739,14 +804,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.05,
-      "marginBucket": "negative",
+      "margin": 3,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.748,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -754,6 +821,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -771,6 +839,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.785,
+      "winnerScore": 70,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+fast",
@@ -781,14 +850,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.013,
-      "marginBucket": "negative",
+      "margin": 6,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.785,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -796,6 +867,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -814,6 +886,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.785,
+      "winnerScore": 70,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+fast",
@@ -824,14 +897,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.013,
-      "marginBucket": "negative",
+      "margin": 6,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.785,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -839,6 +914,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -856,6 +932,7 @@
       "actual": "fast",
       "selectedRule": "balanced-trivial",
       "winnerConfidence": 0.72,
+      "winnerScore": 64,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+fast",
@@ -866,14 +943,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 63,
         "confidence": 0.794
       },
-      "margin": -0.074,
-      "marginBucket": "negative",
+      "margin": 1,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.72,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -881,6 +960,7 @@
         },
         {
           "confidence": 0.794,
+          "score": 63,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -898,6 +978,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.785,
+      "winnerScore": 70,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+fast",
@@ -908,14 +989,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.013,
-      "marginBucket": "negative",
+      "margin": 6,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.785,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -923,6 +1006,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -938,6 +1022,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.802,
+      "winnerScore": 73,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "code+fast+write",
@@ -949,14 +1034,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": -0.005,
-      "marginBucket": "negative",
+      "margin": 7,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.802,
+          "score": 73,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -964,6 +1051,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -971,6 +1059,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -988,6 +1077,7 @@
       "actual": "write",
       "selectedRule": "write-keywords",
       "winnerConfidence": 0.745,
+      "winnerScore": 66,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+write",
@@ -998,14 +1088,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 63,
         "confidence": 0.794
       },
-      "margin": -0.049,
-      "marginBucket": "negative",
+      "margin": 3,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.745,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1013,6 +1105,7 @@
         },
         {
           "confidence": 0.794,
+          "score": 63,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -1031,6 +1124,7 @@
       "actual": "write",
       "selectedRule": "write-keywords",
       "winnerConfidence": 0.825,
+      "winnerScore": 66,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "research+write",
@@ -1041,14 +1135,16 @@
       "runnerUp": {
         "rule": "research-keywords",
         "route": "research",
+        "score": 55,
         "confidence": 0.759
       },
-      "margin": 0.066,
-      "marginBucket": "0.06-0.10",
+      "margin": 11,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.825,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1056,6 +1152,7 @@
         },
         {
           "confidence": 0.759,
+          "score": 55,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1073,6 +1170,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.875,
+      "winnerScore": 82,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+research",
@@ -1083,14 +1181,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 70,
         "confidence": 0.824
       },
-      "margin": 0.051,
-      "marginBucket": "0.06-0.10",
+      "margin": 12,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.875,
+          "score": 82,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1098,6 +1198,7 @@
         },
         {
           "confidence": 0.824,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -1115,6 +1216,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.833,
+      "winnerScore": 73,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+research",
@@ -1125,14 +1227,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 63,
         "confidence": 0.794
       },
-      "margin": 0.039,
-      "marginBucket": "0.01-0.05",
+      "margin": 10,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.833,
+          "score": 73,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1140,6 +1244,7 @@
         },
         {
           "confidence": 0.794,
+          "score": 63,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -1157,6 +1262,7 @@
       "actual": "reason",
       "selectedRule": "reason-keywords",
       "winnerConfidence": 0.728,
+      "winnerScore": 67,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "reason+write",
@@ -1167,14 +1273,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": -0.079,
-      "marginBucket": "negative",
+      "margin": 1,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.728,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -1182,6 +1290,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1199,6 +1308,7 @@
       "actual": "reason",
       "selectedRule": "reason-keywords",
       "winnerConfidence": 0.728,
+      "winnerScore": 67,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "reason+write",
@@ -1209,14 +1319,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": -0.079,
-      "marginBucket": "negative",
+      "margin": 1,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.728,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -1224,6 +1336,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1241,6 +1354,7 @@
       "actual": "reason",
       "selectedRule": "reason-keywords",
       "winnerConfidence": 0.728,
+      "winnerScore": 67,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "reason+write",
@@ -1251,14 +1365,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": -0.079,
-      "marginBucket": "negative",
+      "margin": 1,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.728,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -1266,6 +1382,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1281,6 +1398,7 @@
       "actual": "general",
       "selectedRule": "verification-guard",
       "winnerConfidence": 0.95,
+      "winnerScore": 120,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "fast+general+write",
@@ -1292,14 +1410,16 @@
       "runnerUp": {
         "rule": "write-keywords",
         "route": "write",
+        "score": 66,
         "confidence": 0.807
       },
-      "margin": 0.143,
+      "margin": 54,
       "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.95,
+          "score": 120,
           "reason": "false-premise/hallucination guard task",
           "route": "general",
           "rule": "verification-guard",
@@ -1307,6 +1427,7 @@
         },
         {
           "confidence": 0.807,
+          "score": 66,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1314,6 +1435,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -1332,6 +1454,7 @@
       "actual": "reason",
       "selectedRule": "reason-keywords",
       "winnerConfidence": 0.748,
+      "winnerScore": 67,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+fast+reason",
@@ -1343,14 +1466,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.05,
-      "marginBucket": "negative",
+      "margin": 3,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.748,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -1358,6 +1483,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -1365,6 +1491,7 @@
         },
         {
           "confidence": 0.794,
+          "score": 63,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -1382,6 +1509,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.733,
+      "winnerScore": 65,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+research",
@@ -1392,14 +1520,16 @@
       "runnerUp": {
         "rule": "code-keywords",
         "route": "code",
+        "score": 63,
         "confidence": 0.794
       },
-      "margin": -0.061,
-      "marginBucket": "negative",
+      "margin": 2,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.733,
+          "score": 65,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1407,6 +1537,7 @@
         },
         {
           "confidence": 0.794,
+          "score": 63,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -1425,6 +1556,7 @@
       "actual": "code",
       "selectedRule": "code-keywords",
       "winnerConfidence": 0.785,
+      "winnerScore": 70,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "code+fast+write",
@@ -1436,14 +1568,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": -0.013,
-      "marginBucket": "negative",
+      "margin": 6,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.785,
+          "score": 70,
           "reason": "coding task",
           "route": "code",
           "rule": "code-keywords",
@@ -1451,6 +1585,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -1458,6 +1593,7 @@
         },
         {
           "confidence": 0.777,
+          "score": 59,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1475,6 +1611,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.823,
+      "winnerScore": 73,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "fast+research",
@@ -1485,14 +1622,16 @@
       "runnerUp": {
         "rule": "balanced-trivial",
         "route": "fast",
+        "score": 64,
         "confidence": 0.798
       },
-      "margin": 0.025,
-      "marginBucket": "0.01-0.05",
+      "margin": 9,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.823,
+          "score": 73,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1500,6 +1639,7 @@
         },
         {
           "confidence": 0.798,
+          "score": 64,
           "reason": "short simple prompt",
           "route": "fast",
           "rule": "balanced-trivial",
@@ -1517,6 +1657,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.792,
+      "winnerScore": 73,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "reason+research",
@@ -1527,14 +1668,16 @@
       "runnerUp": {
         "rule": "reason-keywords",
         "route": "reason",
+        "score": 67,
         "confidence": 0.811
       },
-      "margin": -0.019,
-      "marginBucket": "negative",
+      "margin": 6,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.792,
+          "score": 73,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1542,6 +1685,7 @@
         },
         {
           "confidence": 0.811,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -1560,6 +1704,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.905,
+      "winnerScore": 82,
       "routeAccepted": true,
       "harm": "harmful-near-miss",
       "pair": "reason+research+write",
@@ -1571,14 +1716,16 @@
       "runnerUp": {
         "rule": "reason-keywords",
         "route": "reason",
+        "score": 67,
         "confidence": 0.811
       },
-      "margin": 0.094,
-      "marginBucket": "0.06-0.10",
+      "margin": 15,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.905,
+          "score": 82,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1586,6 +1733,7 @@
         },
         {
           "confidence": 0.811,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",
@@ -1593,6 +1741,7 @@
         },
         {
           "confidence": 0.777,
+          "score": 59,
           "reason": "writing task",
           "route": "write",
           "rule": "write-keywords",
@@ -1610,6 +1759,7 @@
       "actual": "research",
       "selectedRule": "research-keywords",
       "winnerConfidence": 0.792,
+      "winnerScore": 73,
       "routeAccepted": true,
       "harm": "benign",
       "pair": "reason+research",
@@ -1620,14 +1770,16 @@
       "runnerUp": {
         "rule": "reason-keywords",
         "route": "reason",
+        "score": 67,
         "confidence": 0.811
       },
-      "margin": -0.019,
-      "marginBucket": "negative",
+      "margin": 6,
+      "marginBucket": ">0.10",
       "tie": false,
       "matches": [
         {
           "confidence": 0.792,
+          "score": 73,
           "reason": "research/production evidence task",
           "route": "research",
           "rule": "research-keywords",
@@ -1635,6 +1787,7 @@
         },
         {
           "confidence": 0.811,
+          "score": 67,
           "reason": "reasoning/planning task",
           "route": "reason",
           "rule": "reason-keywords",

@@ -191,11 +191,14 @@ describe("router eval corpus", () => {
 		const confusion = makeConfusionMatrix();
 		const ruleHistogram: Record<string, number> = {};
 		const knownGapsByRule: Record<string, number> = {};
-		const confidenceCalibration: Record<ConfidenceBucket, { count: number; accepted: number; accuracy: number }> = {
-			"0.00-0.60": { count: 0, accepted: 0, accuracy: 1 },
-			"0.60-0.80": { count: 0, accepted: 0, accuracy: 1 },
-			"0.80-0.90": { count: 0, accepted: 0, accuracy: 1 },
-			"0.90-1.00": { count: 0, accepted: 0, accuracy: 1 },
+		const confidenceCalibration: Record<
+			ConfidenceBucket,
+			{ count: number; accepted: number; accuracy: number; confidenceTotal: number; averageConfidence: number }
+		> = {
+			"0.00-0.60": { count: 0, accepted: 0, accuracy: 1, confidenceTotal: 0, averageConfidence: 0 },
+			"0.60-0.80": { count: 0, accepted: 0, accuracy: 1, confidenceTotal: 0, averageConfidence: 0 },
+			"0.80-0.90": { count: 0, accepted: 0, accuracy: 1, confidenceTotal: 0, averageConfidence: 0 },
+			"0.90-1.00": { count: 0, accepted: 0, accuracy: 1, confidenceTotal: 0, averageConfidence: 0 },
 		};
 		for (const result of results) {
 			confusion[result.expected][result.actual] += 1;
@@ -204,12 +207,26 @@ describe("router eval corpus", () => {
 			if (!result.guardrails.length) {
 				const bucket = confidenceBucket(result.confidence);
 				confidenceCalibration[bucket].count += 1;
+				confidenceCalibration[bucket].confidenceTotal += result.confidence;
 				if (result.routeAccepted) confidenceCalibration[bucket].accepted += 1;
 			}
 		}
 		for (const bucket of Object.values(confidenceCalibration)) {
 			bucket.accuracy = pct(bucket.accepted, bucket.count);
+			bucket.averageConfidence = bucket.count ? bucket.confidenceTotal / bucket.count : 0;
 		}
+		const calibrationRows = results.filter((result) => !result.guardrails.length);
+		const brierScore = calibrationRows.length
+			? calibrationRows.reduce((sum, result) => sum + ((result.routeAccepted ? 1 : 0) - result.confidence) ** 2, 0) /
+				calibrationRows.length
+			: 0;
+		const expectedCalibrationError = calibrationRows.length
+			? Object.values(confidenceCalibration).reduce(
+					(sum, bucket) =>
+						sum + (bucket.count / calibrationRows.length) * Math.abs(bucket.accuracy - bucket.averageConfidence),
+					0,
+				)
+			: 0;
 
 		const must = results.filter((result) => result.tier === "must");
 		const mustWithoutKnownGap = must.filter((result) => !result.knownGap);
@@ -231,6 +248,8 @@ describe("router eval corpus", () => {
 				allAccuracy: pct(results.filter((result) => result.routeAccepted).length, results.length),
 				knownGapFailures: knownGaps.length,
 				guardrailRecall: pct(labeledGuardrails.length - guardrailFailures.length, labeledGuardrails.length),
+				brierScore,
+				expectedCalibrationError,
 			},
 			confusion,
 			ruleHistogram,
@@ -274,8 +293,9 @@ describe("router eval corpus", () => {
 				const acceptedRoutes = new Set([testCase.expected, ...(testCase.acceptable ?? [])]);
 				const candidates = _test.explainRouteCandidates(testCase.prompt, testCase.mode);
 				const routes = [...new Set(candidates.map((candidate) => candidate.route))].sort() as RouterRoute[];
+				const selected = candidates.find((candidate) => candidate.selected);
 				const runnerUp = candidates.find((candidate) => candidate.route !== decision.route);
-				const margin = roundMargin(runnerUp ? (decision.confidence ?? 0) - (runnerUp.confidence ?? 0) : undefined);
+				const margin = roundMargin(selected?.margin);
 				const harm = collisionHarm(decision.route, routes, acceptedRoutes);
 				return {
 					id: testCase.id,
@@ -285,12 +305,18 @@ describe("router eval corpus", () => {
 					actual: decision.route,
 					selectedRule: decision.rule,
 					winnerConfidence: decision.confidence ?? 0,
+					winnerScore: selected?.score,
 					routeAccepted: acceptedRoutes.has(decision.route),
 					harm,
 					pair: routePair(candidates),
 					routes,
 					runnerUp: runnerUp
-						? { rule: runnerUp.rule, route: runnerUp.route, confidence: runnerUp.confidence ?? 0 }
+						? {
+								rule: runnerUp.rule,
+								route: runnerUp.route,
+								score: runnerUp.score,
+								confidence: runnerUp.confidence ?? 0,
+							}
 						: undefined,
 					margin,
 					marginBucket: marginBucket(margin),
@@ -299,6 +325,7 @@ describe("router eval corpus", () => {
 						.filter((candidate) => candidate.rule !== "default-general")
 						.map((candidate) => ({
 							confidence: candidate.confidence ?? 0,
+							score: candidate.score,
 							reason: candidate.reason,
 							route: candidate.route,
 							rule: candidate.rule,
