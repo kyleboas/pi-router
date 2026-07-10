@@ -53,12 +53,13 @@ PI_ROUTER_ACTIVE=1 pi "fix the failing tests"
 
 ## Commands
 
-- `/router on` / `/router off` — master switch: orchestration plus keyword-routing fallback on, or everything off
+- `/router on` / `/router off` — enable hybrid routing plus orchestration, or disable both; in hybrid mode the route selects the primary model
 - `/router status`
 - `/router cost` — show session cost, budgets, token, cache-read/cache-write, route, and model totals
 - `/router cost history` — show aggregate JSONL usage history without prompt text
 - `/router cost daily` — show recent daily JSONL cost rollups
-- `/router label <route>` — opt-in local misroute label for the last decision; stores that prompt in `misroutes.jsonl`
+- `/router feedback` — interactive route/effort correction for the last decision; stores that prompt locally in `misroutes.jsonl`
+- `/router label <route>` — non-interactive form of route feedback
 - `npm run corpus:candidates` — draft eval-corpus candidates from local `misroutes.jsonl` for human review; it never edits `eval/corpus.json`
 - `/router doctor` — validate config, env overrides, model availability, cache env, cost controls, history path, and synthesis setup
 - `/router smoke` — opt-in live panel smoke test; requires `PI_ROUTER_LIVE=1`
@@ -113,13 +114,13 @@ Routing-only example:
 }
 ```
 
-Cost controls are conservative and use the same model families. Routing scores all matching feature families, selects the highest score with a fixed tie-break order, derives confidence from the winner/runner-up margin, and keeps short follow-up turns on the previous route when appropriate. The defaults keep `code`, `reason`, and `research` strong, while `general` and `write` start at lower thinking. Short low-risk code prompts can de-escalate to medium; guardrail, code, research, reasoning, production, verification, and explicit “think hard” prompts can still escalate above cheap defaults. Set `PI_CACHE_RETENTION=long` when the backing provider supports prompt caching. Usage history is append-only JSONL at `~/.pi/agent/extensions/router-usage.jsonl` and stores aggregate usage only, never prompt text. Usage records include the route, classifier rule, confidence, model, thinking level, session id, token counts, and cost. Advisory panel subprocesses also write `kind: "panel"` records with model, latency, and success state; token/cost fields remain zero unless the subprocess exposes usage metadata.
+Cost controls are conservative and use the same model families. Routing scores all matching feature families, selects the highest score with a fixed tie-break order, derives confidence from the winner/runner-up score margin, and keeps short follow-up turns on the previous route when appropriate. `fast` favors minimal effort, `balanced` keeps `code`, `reason`, and `research` strong while starting `general` and `write` lower, and `strong` raises the route's thinking floor (`xhigh` for code/reason/research, `high` for write/general, and `low` for trivial work). Short low-risk code prompts can de-escalate to medium outside strong mode; guardrail, production, verification, and explicit “think hard” prompts can still escalate above cheap defaults. Set `PI_CACHE_RETENTION=long` when the backing provider supports prompt caching. Usage history is append-only JSONL at `~/.pi/agent/extensions/router-usage.jsonl` and stores aggregate usage only, never prompt text. Usage records include the route, classifier rule, confidence, model, thinking level, session id, token counts, and cost. Pi-backed panels report token/cost metadata; external CLIs that do not expose usage are shown as unpriced calls, making reported totals explicit lower bounds.
 
 `extraKeywords` adds local, config-owned route cues without forking the classifier. Project config overrides global config per route. Use this for personal service names, hostnames, or tool names that should route like an existing family.
 
-`/router label <route>` records that the previous router decision should have used another route. Labels are append-only JSONL at `~/.pi/agent/extensions/misroutes.jsonl`. Unlike aggregate usage history, misroute labels intentionally store the prompt text. Explicit labels use `source: "explicit"`; `/router use` and `/router effort` can queue implicit labels, written only after a same-task follow-up prompt passes the similarity guard.
+`/router feedback` interactively records the route and optional effort that the previous decision should have used; `/router label <route>` is the scriptable route-only equivalent. Labels are append-only JSONL at `~/.pi/agent/extensions/misroutes.jsonl`. Unlike aggregate usage history, feedback intentionally stores prompt text locally. Explicit labels use `source: "explicit"`; `/router use` and `/router effort` can queue implicit labels, written only after a same-task follow-up prompt passes the similarity guard.
 
-`npm run corpus:candidates -- --input ~/.pi/agent/extensions/misroutes.jsonl --output eval/corpus-candidates.json` dedupes local labels into draft corpus cases. Review and edit `expected` / `acceptable` / `tier` before manually copying any case into `eval/corpus.json`.
+`npm run eval:feedback` hashes and deduplicates local feedback, creates a deterministic 80/20 training/holdout split under gitignored `eval/local/`, and evaluates only the holdout prompts. Raw prompts and the generated report remain local. `npm run corpus:candidates -- --input ~/.pi/agent/extensions/misroutes.jsonl --output eval/corpus-candidates.json` remains available to draft human-reviewed committed corpus additions.
 
 Optional lean tool profiles can reduce context/tool overhead for low-risk routes without enabling tools the user disabled:
 
@@ -189,7 +190,7 @@ Synthesis controls:
 
 ## Orchestration
 
-Orchestration is opt-in and pins each turn to one primary model. The primary can use `delegate` to send self-contained work to mid or small workers with a minimal tool allowlist. Worker sessions can be steered with `continueId` and are stored under `~/.pi/agent/extensions/router-delegates/`. The `consult` tool asks Fable through the Claude CLI as a read-only advisor, and should be used only when the user explicitly asks.
+Orchestration is opt-in. With auto routing off it pins each turn to the configured orchestration primary; with auto routing on, hybrid mode uses the selected route's primary model while exposing orchestration tools. The primary chooses the worker tier and can use `delegate` to send self-contained work to `small` for narrow search/verification/simple edits or `mid` for nuanced multi-file work, always with a minimal tool allowlist. Mutating workers run in isolated temporary git worktrees; their actual diff determines `filesTouched`, and a clean patch is applied back only after successful completion. Conflicting or failed patches are preserved for review instead of being applied, and mutating delegation is refused outside a git repository rather than falling back to the primary checkout. Worktree isolation prevents accidental concurrent edits but is not a security sandbox. Active workers and tool progress appear in a live widget above the editor until the primary turn ends. Worker sessions can be steered with `continueId` and are stored under `~/.pi/agent/extensions/router-delegates/`. The `consult` tool asks Fable through the Claude CLI as a read-only advisor, and should be used only when the user explicitly asks.
 
 Pool-enabled configuration (other fields show defaults):
 
@@ -222,7 +223,7 @@ The orchestration charter keeps diagnosis, risky production actions, and final d
 
 `/router doctor` reports config paths, `PI_ROUTER_ACTIVE`, `PI_CACHE_RETENTION`, `PI_BIN`/`CLAUDE_BIN` availability, config diagnostics, context usage, usage-history path, cost controls, budgets, per-route model availability, and synthesis configuration. Invalid configured route models now warn and fall back to defaults instead of silently leaving a route empty. State commands preserve unrelated raw route/synthesis config instead of rewriting the whole resolved config.
 
-`/router cost` reports in-memory session totals from assistant usage metadata: dollars, input/output tokens, cache reads/writes, cache hit rate, budget state, and route/model breakdowns. `/router cost history` reports recent aggregate history from JSONL, and `/router cost daily` reports recent daily rollups. These counters do not suppress usage; they make expensive paths visible.
+`/router cost` reports in-memory session totals from assistant usage metadata: dollars, input/output tokens, cache reads/writes, cache hit rate, budget state, and route/model breakdowns. `/router cost history` reports recent aggregate history from JSONL, and `/router cost daily` reports recent daily rollups. After a configured session or daily budget is exhausted, synthesis is skipped, primary thinking can be capped with `maxThinkingOverBudget`, and new delegate/consult calls are blocked. Calls already in flight are allowed to finish.
 
 `/router smoke` is a live, opt-in panel subprocess check. It refuses to run unless `PI_ROUTER_LIVE=1` is set, uses a tiny prompt, limits each configured route to one panelist, and caps timeout at 15 seconds.
 

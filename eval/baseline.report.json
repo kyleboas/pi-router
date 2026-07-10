@@ -6,7 +6,9 @@
     "mustAccuracyExcludingKnownGaps": 1,
     "allAccuracy": 1,
     "knownGapFailures": 0,
-    "guardrailRecall": 1
+    "guardrailRecall": 1,
+    "brierScore": 0.04648079629629631,
+    "expectedCalibrationError": 0.20194444444444445
   },
   "confusion": {
     "fast": {
@@ -74,22 +76,30 @@
     "0.00-0.60": {
       "count": 2,
       "accepted": 2,
-      "accuracy": 1
+      "accuracy": 1,
+      "confidenceTotal": 1.1,
+      "averageConfidence": 0.55
     },
     "0.60-0.80": {
       "count": 23,
       "accepted": 23,
-      "accuracy": 1
+      "accuracy": 1,
+      "confidenceTotal": 17.508000000000003,
+      "averageConfidence": 0.761217391304348
     },
     "0.80-0.90": {
       "count": 25,
       "accepted": 25,
-      "accuracy": 1
+      "accuracy": 1,
+      "confidenceTotal": 20.671999999999997,
+      "averageConfidence": 0.8268799999999998
     },
     "0.90-1.00": {
       "count": 4,
       "accepted": 4,
-      "accuracy": 1
+      "accuracy": 1,
+      "confidenceTotal": 3.8150000000000004,
+      "averageConfidence": 0.9537500000000001
     }
   },
   "unexpectedMustFailures": [],
@@ -140,10 +150,11 @@
       "acceptable": [],
       "expectedGuardrails": [],
       "actual": "fast",
-      "thinkingLevel": "minimal",
+      "thinkingLevel": "low",
       "confidence": 0.798,
       "rule": "balanced-trivial",
       "signals": [
+        "strong-mode",
         "trivial-prompt"
       ],
       "guardrails": [],
@@ -790,10 +801,11 @@
       "acceptable": [],
       "expectedGuardrails": [],
       "actual": "reason",
-      "thinkingLevel": "high",
+      "thinkingLevel": "xhigh",
       "confidence": 0.748,
       "rule": "reason-keywords",
       "signals": [
+        "strong-mode",
         "reasoning-or-planning"
       ],
       "guardrails": [],

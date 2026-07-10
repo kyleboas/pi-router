@@ -329,6 +329,7 @@
 		"prompt": "Explain the root cause and compare the tradeoffs.",
 		"mode": "strong",
 		"expected": "reason",
+		"expectedThinking": "xhigh",
 		"tier": "must"
 	},
 	{

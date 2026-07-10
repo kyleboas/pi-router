@@ -37,4 +37,14 @@ The baseline report includes:
 - `knownGapsByRule` — accepted misses grouped by the responsible branch.
 - `confidenceCalibration` — route acceptance grouped by hardcoded confidence ranges.
 
-The collision report is intentionally non-gating. It identifies prompts where multiple feature families match, making first-match ordering visible before weighted-classifier experiments. It now separates benign overlaps from harmful near-misses and wrong winners, reports runner-up confidence margins/ties, and records known gaps that are not collisions because the missing route feature never matched.
+The collision report is intentionally non-gating. It identifies prompts where multiple feature families match, separates benign overlaps from harmful near-misses and wrong winners, and reports winner/runner-up routing scores plus the actual score margin used for selection. The baseline also reports Brier score and expected calibration error; curated-corpus calibration is diagnostic and should be compared with held-out real feedback before tuning confidence.
+
+## Local held-out feedback
+
+After recording corrections with `/router feedback`, run:
+
+```bash
+npm run eval:feedback
+```
+
+This reads `~/.pi/agent/extensions/misroutes.jsonl`, hashes and deduplicates prompts, and creates a deterministic 80/20 training/holdout split. Only holdout cases are evaluated. Generated cases and reports live under gitignored `eval/local/` because they contain prompt text; never commit that directory. Override paths with positional arguments to `scripts/build-feedback-eval.mjs`, or set `PI_ROUTER_FEEDBACK_EVAL` when running the feedback Vitest file directly.
