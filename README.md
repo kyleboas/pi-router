@@ -53,6 +53,7 @@ PI_ROUTER_ACTIVE=1 pi "fix the failing tests"
 
 ## Commands
 
+- `/router on` / `/router off` — master switch: orchestration plus keyword-routing fallback on, or everything off
 - `/router status`
 - `/router cost` — show session cost, budgets, token, cache-read/cache-write, route, and model totals
 - `/router cost history` — show aggregate JSONL usage history without prompt text

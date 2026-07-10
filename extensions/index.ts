@@ -2763,7 +2763,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 
 	pi.registerCommand(ROUTER_COMMAND, {
 		description:
-			"Inspect or control model routing: status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+			"Inspect or control model routing: on | off | status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			const config = refreshConfig(ctx);
 			const [first, second, ...rest] = args.trim().split(/\s+/).filter(Boolean);
@@ -2781,6 +2781,31 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 						formatBudgetStatus(config),
 						contextUsageSummary(ctx),
 					].join("\n"),
+					"info",
+				);
+				return;
+			}
+			if (first === "on" || first === "off") {
+				const enable = first === "on";
+				state.active = enable;
+				state.orchestrationActive = enable;
+				if (!state.anchorModel && ctx.model) state.anchorModel = modelKey(ctx.model);
+				syncOrchestrationTools();
+				persistState(config);
+				updateConfigFile(config, (configFile) => {
+					const orchestration = isRecord(configFile.orchestration) ? configFile.orchestration : {};
+					orchestration.enabled = enable;
+					configFile.orchestration = orchestration as RouterOrchestrationConfigFile;
+				});
+				if (!enable && state.anchorModel) {
+					const anchor = parseModelSpec(state.anchorModel);
+					const model = anchor ? ctx.modelRegistry.find(anchor.provider, anchor.id) : undefined;
+					if (model) await pi.setModel(model);
+				}
+				ctx.ui.notify(
+					enable
+						? `Router is on: orchestration active (${orchestrationCastSummary(ctx, config)}) with keyword routing as fallback.`
+						: "Router is off: model selection is back to you.",
 					"info",
 				);
 				return;
@@ -3010,7 +3035,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				return;
 			}
 			ctx.ui.notify(
-				"Usage: /router status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+				"Usage: /router on | off | status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 				"warning",
 			);
 		},

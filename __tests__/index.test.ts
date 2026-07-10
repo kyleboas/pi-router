@@ -1067,6 +1067,15 @@ describe("router extension", () => {
 			expect(JSON.parse(readFileSync(configPath, "utf-8")).orchestration.enabled).toBe(false);
 			await commands.get(_test.ROUTER_COMMAND)?.handler("doctor", ctx as never);
 			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Delegate directory:"), "info");
+			await commands.get(_test.ROUTER_COMMAND)?.handler("on", ctx as never);
+			const enabled = JSON.parse(readFileSync(configPath, "utf-8"));
+			expect(enabled.active).toBe(true);
+			expect(enabled.orchestration.enabled).toBe(true);
+			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Router is on"), "info");
+			await commands.get(_test.ROUTER_COMMAND)?.handler("off", ctx as never);
+			const disabled = JSON.parse(readFileSync(configPath, "utf-8"));
+			expect(disabled.active).toBe(false);
+			expect(disabled.orchestration.enabled).toBe(false);
 		} finally {
 			cleanup();
 		}
