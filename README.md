@@ -216,6 +216,8 @@ Pool-enabled configuration (other fields show defaults):
 
 Use `/router orchestrate on|off|status` to persistently control the mode. `PI_ROUTER_ORCHESTRATE=1` or `=0` overrides config for a run. Delegate and consult subprocess usage appears in `/router cost` and persisted usage history with `kind: "delegate"` and `kind: "consult"`.
 
+The orchestration charter keeps diagnosis, risky production actions, and final decisions with the primary. For multi-stage work, it adds a post-diagnosis delegation checkpoint: useful bounded implementation or verification can run in parallel, while trivial work or coordination that would delay the critical path stays primary.
+
 ## Diagnostics and visibility
 
 `/router doctor` reports config paths, `PI_ROUTER_ACTIVE`, `PI_CACHE_RETENTION`, `PI_BIN`/`CLAUDE_BIN` availability, config diagnostics, context usage, usage-history path, cost controls, budgets, per-route model availability, and synthesis configuration. Invalid configured route models now warn and fall back to defaults instead of silently leaving a route empty. State commands preserve unrelated raw route/synthesis config instead of rewriting the whole resolved config.

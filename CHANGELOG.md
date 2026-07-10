@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add opt-in orchestration with primary pinning, delegate workers, Fable consultation, usage accounting, controls, diagnostics, and scoped or explicit model-pool casts.
+- Add a post-diagnosis delegation checkpoint for bounded parallel implementation and verification during multi-stage work.
 - Add `RouterOptions.homeDir` and isolate extension tests from the real home-directory router config.
 
 ## 0.3.0
