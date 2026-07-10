@@ -2147,6 +2147,11 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		| undefined;
 	let synthesisRuns = 0;
 	let delegatesRunning = 0;
+	let delegateCount = 0;
+	let consultCount = 0;
+	let lastDelegation:
+		| { model: string; ok: boolean; usage: DelegateUsage; delegateId?: string; worker?: "mid" | "small" }
+		| undefined;
 	let toolRestore: string[] | undefined;
 
 	function refreshConfig(ctx: ExtensionContext): ResolvedRouterConfig {
@@ -2462,7 +2467,21 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			advisor: record.advisor,
 			...record.usage,
 		});
+		if (record.kind === "delegate") {
+			delegateCount += 1;
+			lastDelegation = record;
+		} else {
+			consultCount += 1;
+		}
 		if (cachedConfig) emitBudgetAlert(cachedConfig);
+	}
+
+	function orchestrationStatusLine(): string {
+		if (!delegateCount && !consultCount) return "Delegations: none this session.";
+		const last = lastDelegation
+			? ` Last: ${lastDelegation.worker ?? "?"} -> ${lastDelegation.model} (${lastDelegation.ok ? "ok" : "failed"}, ${dollars(lastDelegation.usage.costTotal)}, id=${lastDelegation.delegateId ?? "?"}).`
+			: "";
+		return `Delegations: ${delegateCount}; consults: ${consultCount}.${last}`;
 	}
 
 	function costSummaryLines(ctx?: ExtensionContext): string[] {
@@ -2757,6 +2776,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					[
 						`${state.active ? "Router auto is on" : "Router auto is off"}. Mode: ${state.mode}. Anchor: ${state.anchorModel ?? "none"}. Synthesis: ${synthesisRoutes.length ? synthesisRoutes.join(",") : "off"}. Orchestration: ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}`,
 						lastDecision ? describeDecision(lastDecision) : "No decision yet.",
+						orchestrationStatusLine(),
 						formatUsageTotals("Cost", usageTotals),
 						formatBudgetStatus(config),
 						contextUsageSummary(ctx),
@@ -2768,7 +2788,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 			if (first === "orchestrate") {
 				if (!second || second === "status") {
 					ctx.ui.notify(
-						`Router orchestration is ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}`,
+						`Router orchestration is ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}\n${orchestrationStatusLine()}`,
 						"info",
 					);
 					return;
