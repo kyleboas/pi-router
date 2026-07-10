@@ -1052,6 +1052,19 @@ describe("router extension", () => {
 			expect(pi.setModel).toHaveBeenCalledWith(expect.objectContaining({ id: "gpt-5.6" }));
 			expect(pi.setThinkingLevel).toHaveBeenCalledWith("high");
 			expect(result).toMatchObject({ systemPrompt: expect.stringContaining("Router orchestration charter") });
+			expect(result).toMatchObject({
+				systemPrompt: expect.stringContaining("After establishing the primary diagnosis of multi-stage work"),
+			});
+			expect(result).toMatchObject({
+				systemPrompt: expect.stringContaining("Urgency alone is not a reason to skip useful parallel delegation"),
+			});
+			expect(result).toMatchObject({ systemPrompt: expect.stringContaining("do not delegate trivial work") });
+			expect(result).toMatchObject({
+				systemPrompt: expect.stringContaining("risky production actions, and final decisions yourself"),
+			});
+			expect(result).toMatchObject({
+				systemPrompt: expect.stringContaining("Review and independently verify every worker report"),
+			});
 			expect(result).toMatchObject({ systemPrompt: expect.stringContaining("Router hint: route=code") });
 			expect(events.at(-1)).toMatchObject({ orchestrated: true, selectedModel: "openai-codex/gpt-5.6" });
 			(pi.getActiveTools as ReturnType<typeof vi.fn>).mockReturnValue([
