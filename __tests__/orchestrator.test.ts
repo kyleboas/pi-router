@@ -278,14 +278,38 @@ describe("orchestrator", () => {
 			});
 			const first = await delegate.execute(
 				"x",
-				{ task: "brief", worker: "small", tools: ["read"], expectation: "test" },
+				{
+					task: "brief",
+					worker: "small",
+					model: "openai-codex/gpt-5.6-terra",
+					thinking: "high",
+					tools: ["read"],
+					expectation: "test",
+				},
 				undefined,
 				undefined,
 				context(root),
 			);
 			expect(first.content[0]).toMatchObject({ text: expect.stringContaining("delegateId=d-") });
-			expect(records[0]).toMatchObject({ kind: "delegate", worker: "small", usage, costKnown: true });
+			expect(records[0]).toMatchObject({
+				kind: "delegate",
+				worker: "small",
+				model: "openai-codex/gpt-5.6-terra:high",
+				usage,
+				costKnown: true,
+			});
+			expect(runner).toHaveBeenCalledWith(
+				expect.objectContaining({ spec: { provider: "openai-codex", id: "gpt-5.6-terra", thinking: "high" } }),
+			);
 			expect(activities.map((event) => event.phase)).toEqual(["start", "finish"]);
+			const rejected = await delegate.execute(
+				"x",
+				{ task: "brief", worker: "small", model: "other/not-approved", tools: ["read"] },
+				undefined,
+				undefined,
+				context(root),
+			);
+			expect(rejected.content[0]).toMatchObject({ text: expect.stringContaining("not approved") });
 			const blocked = await delegate.execute(
 				"x",
 				{ task: "brief", worker: "small", tools: ["read"] },

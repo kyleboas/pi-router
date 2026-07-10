@@ -86,6 +86,17 @@ const WORKER_TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls"] as 
 const delegateParameters = Type.Object({
 	task: Type.String({ minLength: 1 }),
 	worker: Type.Union([Type.Literal("mid"), Type.Literal("small")]),
+	model: Type.Optional(Type.String({ minLength: 3 })),
+	thinking: Type.Optional(
+		Type.Union([
+			Type.Literal("off"),
+			Type.Literal("minimal"),
+			Type.Literal("low"),
+			Type.Literal("medium"),
+			Type.Literal("high"),
+			Type.Literal("xhigh"),
+		]),
+	),
 	tools: Type.Array(Type.Union(WORKER_TOOLS.map((tool) => Type.Literal(tool))), { minItems: 1 }),
 	continueId: Type.Optional(Type.String({ pattern: "^[a-z0-9-]+$" })),
 	expectation: Type.Optional(Type.String()),
@@ -101,6 +112,28 @@ const MAX_BUFFER = 1024 * 1024;
 
 function modelKey(spec: RouterModelSpec): string {
 	return `${spec.provider}/${spec.id}${spec.thinking ? `:${spec.thinking}` : ""}`;
+}
+
+function modelId(spec: RouterModelSpec): string {
+	return `${spec.provider}/${spec.id}`;
+}
+
+function selectDelegateSpec(
+	config: ResolvedOrchestrationConfig,
+	cast: OrchestrationCast,
+	worker: OrchestrationWorker,
+	requestedModel?: string,
+	requestedThinking?: RouterModelSpec["thinking"],
+): { spec?: RouterModelSpec; diagnostic?: string } {
+	const fallback = cast[worker];
+	if (!requestedModel) return { spec: { ...fallback, thinking: requestedThinking ?? fallback.thinking } };
+	const candidates = config.pool?.length ? config.pool : [cast.mid, cast.small];
+	const selected = candidates.find((candidate) => modelId(candidate) === requestedModel);
+	if (!selected) {
+		const allowed = [...new Set(candidates.map(modelId))].join(", ");
+		return { diagnostic: `Requested worker model ${requestedModel} is not approved. Choose one of: ${allowed}.` };
+	}
+	return { spec: { ...selected, thinking: requestedThinking ?? selected.thinking ?? fallback.thinking } };
 }
 
 function textContent(text: string, details: Record<string, unknown>) {
@@ -477,10 +510,11 @@ export function createDelegateTool(deps: ToolDeps): ToolDefinition<typeof delega
 		name: "delegate",
 		label: "Delegate work",
 		description:
-			"Delegate a self-contained task; the primary chooses small for narrow work or mid for nuanced multi-file work.",
-		promptSnippet: "delegate: choose mid or small, then assign a self-contained brief",
+			"Delegate a self-contained task; the primary chooses the approved exact model and thinking level, plus small or mid as a task-size hint.",
+		promptSnippet: "delegate: choose small/mid plus an approved exact provider/model and thinking level",
 		promptGuidelines: [
 			"Choose the worker tier yourself: small for narrow search/verification/simple edits; mid for nuanced or multi-file work.",
+			"For consequential work, explicitly choose model as provider/id from the approved pool and thinking as off/minimal/low/medium/high/xhigh. The router rejects unapproved or unavailable choices and records the actual selection.",
 			"Delegate only self-contained work, use the minimum tools, and review every worker report.",
 		],
 		parameters: delegateParameters,
@@ -489,14 +523,17 @@ export function createDelegateTool(deps: ToolDeps): ToolDefinition<typeof delega
 				return textContent("Delegation is disabled; do the work yourself, don't retry.", { ok: false });
 			const budgetBlock = deps.canLaunch?.("delegate");
 			if (budgetBlock) return textContent(`Delegation blocked: ${budgetBlock}`, { ok: false });
+			const config = deps.getConfig();
+			const selection = selectDelegateSpec(config, deps.getCast(ctx), params.worker, params.model, params.thinking);
+			if (!selection.spec)
+				return textContent(selection.diagnostic ?? "No approved worker model is available.", { ok: false });
+			const spec = selection.spec;
+			if (!deps.isWorkerAvailable(ctx, spec))
+				return textContent(`Worker model ${modelKey(spec)} is unavailable; do the work yourself.`, { ok: false });
 			const release = deps.acquireSlot();
 			if (!release)
 				return textContent("Delegation concurrency limit reached; do the work yourself or retry later.", { ok: false });
 			try {
-				const config = deps.getConfig();
-				const spec = deps.getCast(ctx)[params.worker];
-				if (!deps.isWorkerAvailable(ctx, spec))
-					return textContent(`Worker model ${modelKey(spec)} is unavailable; do the work yourself.`, { ok: false });
 				const directory = deps.delegateDir();
 				mkdirSync(directory, { recursive: true });
 				if (params.continueId && !existsSync(join(directory, `${params.continueId}.jsonl`)))

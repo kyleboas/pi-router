@@ -217,7 +217,7 @@ Pool-enabled configuration (other fields show defaults):
 
 Use `/router orchestrate on|off|status` to persistently control the mode. `PI_ROUTER_ORCHESTRATE=1` or `=0` overrides config for a run. Delegate and consult subprocess usage appears in `/router cost` and persisted usage history with `kind: "delegate"` and `kind: "consult"`.
 
-The orchestration charter keeps diagnosis, risky production actions, and final decisions with the primary. For multi-stage work, it adds a post-diagnosis delegation checkpoint: useful bounded implementation or verification can run in parallel, while trivial work or coordination that would delay the critical path stays primary.
+The orchestration charter keeps diagnosis, risky production actions, and final decisions with the primary. For multi-stage work, it adds a post-diagnosis delegation checkpoint: useful bounded implementation or verification can run in parallel, while trivial work or coordination that would delay the critical path stays primary. The primary selects the task-size hint (`small` or `mid`), an exact approved `provider/model`, and effort (`off`, `minimal`, `low`, `medium`, `high`, or `xhigh`) for consequential delegation. The requested model must be in the configured `pool` (or one of the configured worker slots when no pool exists); the router validates session availability and budget before launching, then records the actual model and effort used.
 
 ## Diagnostics and visibility
 
