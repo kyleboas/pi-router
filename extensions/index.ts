@@ -1,5 +1,5 @@
 import { execFile, execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Api, Model } from "@mariozechner/pi-ai";
@@ -10,6 +10,18 @@ import type {
 	ExtensionCommandContext,
 	ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import {
+	type ConsultRunner,
+	createConsultTool,
+	createDelegateTool,
+	type DelegateRunner,
+	type DelegateUsage,
+	delegateDirectory,
+	type OrchestrationCast,
+	pruneDelegateSessions,
+	type ResolvedOrchestrationConfig,
+	runDelegate,
+} from "./orchestrator.js";
 
 export type RouterMode = "fast" | "balanced" | "strong";
 export type RouterRoute = "fast" | "code" | "reason" | "write" | "research" | "general";
@@ -80,6 +92,7 @@ export interface RouterTelemetry extends RouterDecision {
 	panelOkCount?: number;
 	panelFailCount?: number;
 	panelLatencyMs?: number;
+	orchestrated?: boolean;
 }
 
 interface RouterModelSpec {
@@ -101,6 +114,18 @@ interface RouterPanelConfigFile {
 interface RouterSynthesisConfigFile {
 	enabled?: boolean;
 	routes?: Partial<Record<RouterRoute, RouterPanelConfigFile>>;
+}
+
+interface RouterOrchestrationConfigFile {
+	enabled?: boolean;
+	primary?: string;
+	workers?: Partial<Record<"mid" | "small", string>>;
+	consultants?: { fable?: string };
+	pool?: "scoped" | string[];
+	delegateTimeoutMs?: number;
+	consultTimeoutMs?: number;
+	maxConcurrent?: number;
+	maxOutputChars?: number;
 }
 
 interface RouterCostControlsConfigFile {
@@ -131,6 +156,7 @@ interface RouterConfigFile {
 	extraKeywords?: Partial<Record<RouterRoute, string[]>>;
 	synthesis?: RouterSynthesisConfigFile;
 	costControls?: RouterCostControlsConfigFile;
+	orchestration?: RouterOrchestrationConfigFile;
 	toolProfiles?: Partial<Record<RouterRoute, string[]>>;
 	shadowRoute?: boolean;
 }
@@ -181,6 +207,7 @@ interface ResolvedRouterConfig {
 	extraKeywords: Partial<Record<RouterRoute, string[]>>;
 	synthesis: ResolvedRouterSynthesisConfig;
 	costControls: ResolvedRouterCostControls;
+	orchestration: ResolvedOrchestrationConfig;
 	toolProfiles: Partial<Record<RouterRoute, string[]>>;
 	shadowRoute: boolean;
 	diagnostics: RouterConfigDiagnostic[];
@@ -191,6 +218,7 @@ interface RouterState {
 	mode: RouterMode;
 	anchorModel?: string;
 	routerSettingModel: boolean;
+	orchestrationActive: boolean;
 }
 
 export interface RouterPanelResult {
@@ -210,8 +238,12 @@ export interface RouterPanelRequest {
 
 export type PanelRunner = (request: RouterPanelRequest) => Promise<RouterPanelResult[]>;
 
-interface RouterOptions {
+export interface RouterOptions {
 	panelRunner?: PanelRunner;
+	delegateRunner?: DelegateRunner;
+	consultRunner?: ConsultRunner;
+	delegateDir?: string;
+	homeDir?: string;
 	usageHistoryPath?: string;
 	misrouteHistoryPath?: string;
 	now?: () => Date;
@@ -227,6 +259,8 @@ const DEFAULT_PANEL_MIN_PROMPT_CHARS = 200;
 const DEFAULT_PANEL_MAX_TOTAL_CHARS = 12_000;
 const DEFAULT_PANEL_MAX_PANELISTS = 4;
 const PANEL_MAX_BUFFER = 1024 * 1024;
+const ORCHESTRATOR_CHARTER =
+	"Router orchestration charter: You are the primary. Delegate only self-contained grunt work with minimal tool allowlists; workers cannot see this conversation. Keep design, ambiguity, and conversation-context work yourself. Review and verify every worker report. Consult Fable only when the user explicitly asks.";
 
 const DEFAULT_ROUTE_MODELS: Record<RouterRoute, string[]> = {
 	fast: ["openai-codex/gpt-5.5:minimal", "openai-codex/gpt-5.5:low"],
@@ -242,6 +276,21 @@ const DEFAULT_CONFIG: Required<Pick<RouterConfigFile, "active" | "persistState" 
 	persistState: true,
 	mode: "balanced",
 	requireOAuth: true,
+};
+
+const DEFAULT_ORCHESTRATION: ResolvedOrchestrationConfig = {
+	enabled: false,
+	primary: { provider: "openai-codex", id: "gpt-5.6-sol" },
+	workers: {
+		mid: { provider: "openai-codex", id: "gpt-5.6-terra", thinking: "medium" },
+		small: { provider: "openai-codex", id: "gpt-5.6-luna", thinking: "low" },
+	},
+	consultants: { fable: { provider: "claude-cli", id: "claude-fable-5" } },
+	explicit: { primary: false, mid: false, small: false },
+	delegateTimeoutMs: 600_000,
+	consultTimeoutMs: 120_000,
+	maxConcurrent: 2,
+	maxOutputChars: 16_000,
 };
 
 const DEFAULT_COST_CONTROLS: ResolvedRouterCostControls = {
@@ -444,6 +493,70 @@ function readCostControlsConfig(
 	return costControls;
 }
 
+function readOrchestrationConfig(
+	value: unknown,
+	diagnostics?: RouterConfigDiagnostic[],
+	path = "orchestration",
+): RouterOrchestrationConfigFile | undefined {
+	if (value === undefined) return undefined;
+	if (!isRecord(value)) {
+		addDiagnostic(diagnostics, "warning", path, "Expected an object; orchestration ignored.");
+		return undefined;
+	}
+	const config: RouterOrchestrationConfigFile = {};
+	if (value.enabled !== undefined) {
+		if (typeof value.enabled === "boolean") config.enabled = value.enabled;
+		else addDiagnostic(diagnostics, "warning", `${path}.enabled`, "Expected a boolean; value ignored.");
+	}
+	if (value.pool !== undefined) {
+		if (value.pool === "scoped" || Array.isArray(value.pool)) {
+			config.pool =
+				value.pool === "scoped" ? value.pool : value.pool.filter((entry): entry is string => typeof entry === "string");
+			if (Array.isArray(value.pool) && config.pool.length !== value.pool.length)
+				addDiagnostic(
+					diagnostics,
+					"warning",
+					`${path}.pool`,
+					"Expected a model string array; invalid entries ignored.",
+				);
+		} else
+			addDiagnostic(diagnostics, "warning", `${path}.pool`, "Expected scoped or a model string array; value ignored.");
+	}
+	for (const key of ["primary"] as const) {
+		if (value[key] === undefined) continue;
+		if (typeof value[key] === "string") config[key] = value[key];
+		else addDiagnostic(diagnostics, "warning", `${path}.${key}`, "Expected a model string; value ignored.");
+	}
+	for (const key of ["delegateTimeoutMs", "consultTimeoutMs", "maxConcurrent", "maxOutputChars"] as const) {
+		if (value[key] === undefined) continue;
+		if (typeof value[key] === "number") config[key] = value[key];
+		else addDiagnostic(diagnostics, "warning", `${path}.${key}`, "Expected a number; value ignored.");
+	}
+	if (value.workers !== undefined) {
+		if (!isRecord(value.workers))
+			addDiagnostic(diagnostics, "warning", `${path}.workers`, "Expected an object; value ignored.");
+		else {
+			config.workers = {};
+			for (const worker of ["mid", "small"] as const) {
+				if (value.workers[worker] === undefined) continue;
+				if (typeof value.workers[worker] === "string") config.workers[worker] = value.workers[worker];
+				else
+					addDiagnostic(diagnostics, "warning", `${path}.workers.${worker}`, "Expected a model string; value ignored.");
+			}
+		}
+	}
+	if (value.consultants !== undefined) {
+		if (!isRecord(value.consultants))
+			addDiagnostic(diagnostics, "warning", `${path}.consultants`, "Expected an object; value ignored.");
+		else if (value.consultants.fable !== undefined) {
+			if (typeof value.consultants.fable === "string") config.consultants = { fable: value.consultants.fable };
+			else
+				addDiagnostic(diagnostics, "warning", `${path}.consultants.fable`, "Expected a model string; value ignored.");
+		}
+	}
+	return config;
+}
+
 function readExtraKeywordsConfig(
 	value: unknown,
 	diagnostics?: RouterConfigDiagnostic[],
@@ -618,6 +731,7 @@ function readConfigFileWithDiagnostics(filePath: string): {
 			"extraKeywords",
 			"synthesis",
 			"costControls",
+			"orchestration",
 			"toolProfiles",
 			"shadowRoute",
 		]);
@@ -673,6 +787,7 @@ function readConfigFileWithDiagnostics(filePath: string): {
 		config.extraKeywords = readExtraKeywordsConfig(parsed.extraKeywords, diagnostics, `${filePath}.extraKeywords`);
 		config.synthesis = readSynthesisConfig(parsed.synthesis, diagnostics, `${filePath}.synthesis`);
 		config.costControls = readCostControlsConfig(parsed.costControls, diagnostics, `${filePath}.costControls`);
+		config.orchestration = readOrchestrationConfig(parsed.orchestration, diagnostics, `${filePath}.orchestration`);
 		config.toolProfiles = readToolProfilesConfig(parsed.toolProfiles, diagnostics, `${filePath}.toolProfiles`);
 		if (parsed.shadowRoute !== undefined) {
 			if (typeof parsed.shadowRoute === "boolean") config.shadowRoute = parsed.shadowRoute;
@@ -706,6 +821,29 @@ export function getConfigPaths(
 	};
 }
 
+function readScopedModels(filePath: string): { found: boolean; models?: string[] } {
+	if (!existsSync(filePath)) return { found: false };
+	try {
+		const parsed = JSON.parse(readFileSync(filePath, "utf-8")) as unknown;
+		if (!isRecord(parsed) || !("scopedModels" in parsed)) return { found: false };
+		return {
+			found: true,
+			models: Array.isArray(parsed.scopedModels)
+				? parsed.scopedModels.filter((model): model is string => typeof model === "string")
+				: [],
+		};
+	} catch {
+		return { found: false };
+	}
+}
+
+function scopedModelsForConfig(cwd: string, homeDir: string): string[] | undefined {
+	const project = readScopedModels(join(cwd, ".pi", "settings.json"));
+	if (project.found) return project.models;
+	const global = readScopedModels(join(homeDir, ".pi", "agent", "settings.json"));
+	return global.found ? global.models : undefined;
+}
+
 export function parseCostControlsConfig(config?: RouterCostControlsConfigFile): ResolvedRouterCostControls {
 	return {
 		enabled: config?.enabled ?? DEFAULT_COST_CONTROLS.enabled,
@@ -727,6 +865,84 @@ export function parseCostControlsConfig(config?: RouterCostControlsConfigFile): 
 		synthesisCooldownTurns:
 			optionalNonNegativeInteger(config?.synthesisCooldownTurns) ?? DEFAULT_COST_CONTROLS.synthesisCooldownTurns,
 		synthesisMaxPerSession: optionalNonNegativeInteger(config?.synthesisMaxPerSession),
+	};
+}
+
+export function parseOrchestrationConfig(
+	config?: RouterOrchestrationConfigFile,
+	diagnostics?: RouterConfigDiagnostic[],
+	path = "orchestration",
+	scopedModels?: string[],
+): ResolvedOrchestrationConfig {
+	const parse = (value: string | undefined, fallback: RouterModelSpec, field: string): RouterModelSpec => {
+		if (value === undefined) return { ...fallback };
+		const spec = parseModelSpec(value);
+		if (spec) return spec;
+		addDiagnostic(diagnostics, "warning", `${path}.${field}`, `Invalid model spec "${value}"; using default.`);
+		return { ...fallback };
+	};
+	const poolEntries = config?.pool === "scoped" ? scopedModels : config?.pool;
+	const pool = poolEntries
+		?.map((entry, index) => {
+			const spec = parseModelSpec(entry);
+			if (!spec)
+				addDiagnostic(
+					diagnostics,
+					"warning",
+					`${path}.pool[${index}]`,
+					`Invalid model spec "${entry}"; entry ignored.`,
+				);
+			return spec;
+		})
+		.filter(Boolean) as RouterModelSpec[] | undefined;
+	return {
+		enabled: config?.enabled ?? DEFAULT_ORCHESTRATION.enabled,
+		primary: parse(config?.primary, DEFAULT_ORCHESTRATION.primary, "primary"),
+		workers: {
+			mid: parse(config?.workers?.mid, DEFAULT_ORCHESTRATION.workers.mid, "workers.mid"),
+			small: parse(config?.workers?.small, DEFAULT_ORCHESTRATION.workers.small, "workers.small"),
+		},
+		pool: pool?.length ? pool : undefined,
+		poolSource: config?.pool === "scoped" ? "scoped" : config?.pool ? "explicit" : undefined,
+		explicit: {
+			primary: config?.primary !== undefined,
+			mid: config?.workers?.mid !== undefined,
+			small: config?.workers?.small !== undefined,
+		},
+		consultants: {
+			fable: parse(config?.consultants?.fable, DEFAULT_ORCHESTRATION.consultants.fable, "consultants.fable"),
+		},
+		delegateTimeoutMs: positiveNumber(config?.delegateTimeoutMs, DEFAULT_ORCHESTRATION.delegateTimeoutMs),
+		consultTimeoutMs: positiveNumber(config?.consultTimeoutMs, DEFAULT_ORCHESTRATION.consultTimeoutMs),
+		maxConcurrent: positiveNumber(config?.maxConcurrent, DEFAULT_ORCHESTRATION.maxConcurrent),
+		maxOutputChars: positiveNumber(config?.maxOutputChars, DEFAULT_ORCHESTRATION.maxOutputChars),
+	};
+}
+
+export function resolveOrchestrationCast(
+	config: ResolvedOrchestrationConfig,
+	isAvailable: (spec: RouterModelSpec) => boolean,
+): OrchestrationCast {
+	const available = config.pool?.filter(isAvailable) ?? [];
+	const primary = available[0];
+	const mid = available[Math.floor(available.length / 2)];
+	const small = available.at(-1);
+	const worker = (
+		spec: RouterModelSpec | undefined,
+		fallback: RouterModelSpec,
+		thinking: ThinkingLevel,
+	): RouterModelSpec => {
+		const selected = spec ?? fallback;
+		return selected.thinking ? selected : { ...selected, thinking };
+	};
+	return {
+		primary: config.explicit.primary
+			? config.primary
+			: primary
+				? { provider: primary.provider, id: primary.id }
+				: config.primary,
+		mid: config.explicit.mid ? config.workers.mid : worker(mid, config.workers.mid, "medium"),
+		small: config.explicit.small ? config.workers.small : worker(small, config.workers.small, "low"),
 	};
 }
 
@@ -804,6 +1020,12 @@ export function resolveRouterConfig(cwd: string, homeDir = homedir()): ResolvedR
 			routes: { ...globalConfig.synthesis?.routes, ...projectConfig.synthesis?.routes },
 		},
 		costControls: { ...globalConfig.costControls, ...projectConfig.costControls },
+		orchestration: {
+			...globalConfig.orchestration,
+			...projectConfig.orchestration,
+			workers: { ...globalConfig.orchestration?.workers, ...projectConfig.orchestration?.workers },
+			consultants: { ...globalConfig.orchestration?.consultants, ...projectConfig.orchestration?.consultants },
+		},
 		extraKeywords: { ...globalConfig.extraKeywords, ...projectConfig.extraKeywords },
 		toolProfiles: { ...globalConfig.toolProfiles, ...projectConfig.toolProfiles },
 		shadowRoute: projectConfig.shadowRoute ?? globalConfig.shadowRoute,
@@ -816,6 +1038,12 @@ export function resolveRouterConfig(cwd: string, homeDir = homedir()): ResolvedR
 	) as Record<RouterRoute, RouterModelSpec[]>;
 	const costControls = parseCostControlsConfig(merged.costControls);
 	const synthesis = parseSynthesisConfig(merged.synthesis, diagnostics);
+	const orchestration = parseOrchestrationConfig(
+		merged.orchestration,
+		diagnostics,
+		"orchestration",
+		scopedModelsForConfig(cwd, homeDir),
+	);
 	if (costControls.enabled && costControls.synthesisMinPromptChars) {
 		for (const spec of Object.values(synthesis.routes)) {
 			if (spec) spec.minPromptChars = Math.max(spec.minPromptChars, costControls.synthesisMinPromptChars);
@@ -834,6 +1062,7 @@ export function resolveRouterConfig(cwd: string, homeDir = homedir()): ResolvedR
 		extraKeywords: merged.extraKeywords ?? {},
 		synthesis,
 		costControls,
+		orchestration,
 		toolProfiles: merged.toolProfiles ?? {},
 		shadowRoute: merged.shadowRoute ?? false,
 		diagnostics,
@@ -1465,7 +1694,7 @@ function panelCommand(spec: RouterModelSpec, prompt: string): { cmd: string; arg
 	if (spec.provider === "claude-cli") {
 		return {
 			cmd: process.env.CLAUDE_BIN || "claude",
-			args: ["-p", "--model", claudeModelId(spec), "--tools", "none", prompt],
+			args: ["--model", claudeModelId(spec), "--tools", "none", "-p", prompt],
 		};
 	}
 	return {
@@ -1620,7 +1849,7 @@ interface RouterCostEvent extends RouterUsageTotals {
 interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 	timestamp: string;
 	sessionId?: string;
-	kind?: "turn" | "panel" | "unrouted" | "shadow";
+	kind?: "turn" | "panel" | "unrouted" | "shadow" | "delegate" | "consult";
 	active?: boolean;
 	route?: RouterRoute;
 	model?: string;
@@ -1630,6 +1859,9 @@ interface RouterUsageRecord extends Omit<RouterUsageTotals, "turns"> {
 	signals?: string[];
 	panelOk?: boolean;
 	panelLatencyMs?: number;
+	delegateId?: string;
+	worker?: "mid" | "small";
+	advisor?: string;
 	shadowRoute?: RouterRoute;
 	shadowThinkingLevel?: ThinkingLevel;
 	shadowRule?: RouterRuleId;
@@ -1701,7 +1933,15 @@ function misrouteHistoryPath(homeDir = homedir()): string {
 }
 
 function addRecordToTotals(total: RouterUsageTotals, record: RouterUsageRecord): void {
-	addUsageTotals(total, record, record.kind !== "panel" && record.kind !== "unrouted" && record.kind !== "shadow");
+	addUsageTotals(
+		total,
+		record,
+		record.kind !== "panel" &&
+			record.kind !== "unrouted" &&
+			record.kind !== "shadow" &&
+			record.kind !== "delegate" &&
+			record.kind !== "consult",
+	);
 }
 
 function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
@@ -1720,7 +1960,11 @@ function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
 							? "unrouted"
 							: parsed.kind === "shadow"
 								? "shadow"
-								: undefined,
+								: parsed.kind === "delegate"
+									? "delegate"
+									: parsed.kind === "consult"
+										? "consult"
+										: undefined,
 			active: typeof parsed.active === "boolean" ? parsed.active : undefined,
 			route: typeof parsed.route === "string" && isRouterRoute(parsed.route) ? parsed.route : undefined,
 			model: typeof parsed.model === "string" ? parsed.model : undefined,
@@ -1732,6 +1976,9 @@ function parseUsageHistoryLine(line: string): RouterUsageRecord | undefined {
 				: undefined,
 			panelOk: typeof parsed.panelOk === "boolean" ? parsed.panelOk : undefined,
 			panelLatencyMs: typeof parsed.panelLatencyMs === "number" ? parsed.panelLatencyMs : undefined,
+			delegateId: typeof parsed.delegateId === "string" ? parsed.delegateId : undefined,
+			worker: parsed.worker === "mid" || parsed.worker === "small" ? parsed.worker : undefined,
+			advisor: typeof parsed.advisor === "string" ? parsed.advisor : undefined,
 			shadowRoute:
 				typeof parsed.shadowRoute === "string" && isRouterRoute(parsed.shadowRoute) ? parsed.shadowRoute : undefined,
 			shadowThinkingLevel: normalizeThinkingLevel(parsed.shadowThinkingLevel),
@@ -1864,11 +2111,16 @@ function contextUsageSummary(ctx: ExtensionContext): string {
 
 export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}): void {
 	let cachedConfig: ResolvedRouterConfig | undefined;
-	const state: RouterState = { active: false, mode: "balanced", routerSettingModel: false };
+	const state: RouterState = { active: false, mode: "balanced", routerSettingModel: false, orchestrationActive: false };
 	const panelRunner = options.panelRunner ?? runSubprocessPanel;
+	const delegateRunner = options.delegateRunner ?? runDelegate;
+	const consultRunner: ConsultRunner =
+		options.consultRunner ?? ((spec, prompt, timeoutMs, signal) => runPanelist(spec, prompt, timeoutMs, signal));
+	const homeDir = options.homeDir ?? homedir();
+	const configuredDelegateDir = options.delegateDir ?? delegateDirectory(homeDir);
 	const now = options.now ?? (() => new Date());
-	const historyPath = options.usageHistoryPath ?? usageHistoryPath();
-	const misroutePath = options.misrouteHistoryPath ?? misrouteHistoryPath();
+	const historyPath = options.usageHistoryPath ?? usageHistoryPath(homeDir);
+	const misroutePath = options.misrouteHistoryPath ?? misrouteHistoryPath(homeDir);
 	const sessionId = `router-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 	let lastDecision: RouterTelemetry | undefined;
 	let activeTurnDecision: RouterTelemetry | undefined;
@@ -1894,15 +2146,33 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		  }
 		| undefined;
 	let synthesisRuns = 0;
+	let delegatesRunning = 0;
 	let toolRestore: string[] | undefined;
 
 	function refreshConfig(ctx: ExtensionContext): ResolvedRouterConfig {
-		cachedConfig = resolveRouterConfig(ctx.cwd || process.cwd());
+		cachedConfig = resolveRouterConfig(ctx.cwd || process.cwd(), homeDir);
 		state.active =
 			normalizeBooleanEnv(process.env.PI_ROUTER_ACTIVE) ?? (Boolean(pi.getFlag(ROUTER_FLAG)) || cachedConfig.active);
+		state.orchestrationActive =
+			normalizeBooleanEnv(process.env.PI_ROUTER_ORCHESTRATE) ?? cachedConfig.orchestration.enabled;
 		state.mode = cachedConfig.mode;
 		state.anchorModel = cachedConfig.anchorModel ?? state.anchorModel ?? (ctx.model ? modelKey(ctx.model) : undefined);
 		return cachedConfig;
+	}
+
+	function orchestrationCast(ctx: ExtensionContext, config: ResolvedRouterConfig): OrchestrationCast {
+		return resolveOrchestrationCast(config.orchestration, (spec) =>
+			Boolean(findAvailableModel(ctx, [spec], config.requireOAuth, true).model),
+		);
+	}
+
+	function orchestrationCastSummary(ctx: ExtensionContext, config: ResolvedRouterConfig): string {
+		const cast = orchestrationCast(ctx, config);
+		const availability = (spec: RouterModelSpec) =>
+			findAvailableModel(ctx, [spec], config.requireOAuth, true).model ? "available" : "unavailable";
+		const source =
+			config.orchestration.poolSource === "explicit" ? "explicit list" : (config.orchestration.poolSource ?? "none");
+		return `Pool: ${source}; cast=primary:${modelSpecKey(cast.primary)} (${availability(cast.primary)}),mid:${modelSpecKey(cast.mid)} (${availability(cast.mid)}),small:${modelSpecKey(cast.small)} (${availability(cast.small)})`;
 	}
 
 	function readWritableConfig(filePath: string): RouterConfigFile & Record<string, unknown> {
@@ -1998,7 +2268,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 	}
 
 	function addGuardrailContext(event: ContextEvent): void {
-		if (!state.active || !lastDecision?.active) return;
+		if ((!state.active && !state.orchestrationActive) || !lastDecision?.active) return;
 		const latestUser = [...event.messages].reverse().find((message) => message.role === "user");
 		const prompt = typeof latestUser?.content === "string" ? latestUser.content : "";
 		const guardrail = routerGuardrailMessage(prompt, lastDecision);
@@ -2035,6 +2305,22 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		toolRestore = undefined;
 	}
 
+	function syncOrchestrationTools(): void {
+		const api = pi as ExtensionAPI & {
+			getActiveTools?: () => string[];
+			setActiveTools?: (toolNames: string[]) => void;
+		};
+		if (typeof api.getActiveTools !== "function" || typeof api.setActiveTools !== "function") return;
+		const activeTools = api.getActiveTools();
+		const orchestrationTools = ["delegate", "consult"];
+		const nextTools = state.orchestrationActive
+			? [...activeTools, ...orchestrationTools.filter((tool) => !activeTools.includes(tool))]
+			: activeTools.filter((tool) => !orchestrationTools.includes(tool));
+		if (nextTools.length !== activeTools.length || nextTools.some((tool, index) => tool !== activeTools[index])) {
+			api.setActiveTools(nextTools);
+		}
+	}
+
 	function historyRecordsWithPending(): RouterUsageRecord[] {
 		return [...readUsageHistory(historyPath), ...pendingUsageRecords];
 	}
@@ -2047,7 +2333,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 	}
 
 	function budgetStatus(
-		config: ResolvedRouterConfig = cachedConfig ?? resolveRouterConfig(process.cwd()),
+		config: ResolvedRouterConfig = cachedConfig ?? resolveRouterConfig(process.cwd(), homeDir),
 	): RouterBudgetStatus {
 		const controls = config.costControls;
 		const sessionCost = usageTotals.costTotal;
@@ -2089,7 +2375,9 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		pi.events.emit("router:alert", { type: "budget", level, ...status });
 	}
 
-	function flushUsageHistory(config: ResolvedRouterConfig = cachedConfig ?? resolveRouterConfig(process.cwd())): void {
+	function flushUsageHistory(
+		config: ResolvedRouterConfig = cachedConfig ?? resolveRouterConfig(process.cwd(), homeDir),
+	): void {
 		if (!config.costControls.enabled || !config.costControls.persistHistory || !pendingUsageRecords.length) return;
 		if (appendUsageHistory(historyPath, pendingUsageRecords)) pendingUsageRecords.splice(0);
 	}
@@ -2147,8 +2435,38 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		};
 	}
 
+	function recordOrchestrationUsage(record: {
+		kind: "delegate" | "consult";
+		model: string;
+		usage: DelegateUsage;
+		ok: boolean;
+		latencyMs: number;
+		delegateId?: string;
+		worker?: "mid" | "small";
+		advisor?: string;
+	}): void {
+		addUsageTotals(usageTotals, record.usage, false);
+		const modelTotal = usageByModel.get(record.model) ?? emptyUsageTotals();
+		addUsageTotals(modelTotal, record.usage, false);
+		usageByModel.set(record.model, modelTotal);
+		pendingUsageRecords.push({
+			timestamp: now().toISOString(),
+			sessionId,
+			kind: record.kind,
+			route: activeTurnDecision?.route,
+			model: record.model,
+			panelOk: record.ok,
+			panelLatencyMs: record.latencyMs,
+			delegateId: record.delegateId,
+			worker: record.worker,
+			advisor: record.advisor,
+			...record.usage,
+		});
+		if (cachedConfig) emitBudgetAlert(cachedConfig);
+	}
+
 	function costSummaryLines(ctx?: ExtensionContext): string[] {
-		const config = cachedConfig ?? (ctx ? refreshConfig(ctx) : resolveRouterConfig(process.cwd()));
+		const config = cachedConfig ?? (ctx ? refreshConfig(ctx) : resolveRouterConfig(process.cwd(), homeDir));
 		const lines = ["Router cost", formatUsageTotals("Total", usageTotals), formatBudgetStatus(config)];
 		if (latestBudgetAlert) lines.push(latestBudgetAlert);
 		if (ctx) lines.push(contextUsageSummary(ctx));
@@ -2163,11 +2481,59 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		return lines;
 	}
 
+	async function routeOrchestrated(
+		event: BeforeAgentStartEvent,
+		ctx: ExtensionContext,
+		config: ResolvedRouterConfig,
+	): Promise<{ systemPrompt?: string } | "fallthrough"> {
+		if (!state.orchestrationActive) return "fallthrough";
+		const previousDecision = lastDecision?.active ? lastDecision : undefined;
+		const decision = classifyPrompt(event.prompt, state.mode, config.extraKeywords, previousDecision);
+		const cast = orchestrationCast(ctx, config);
+		const found = findAvailableModel(ctx, [cast.primary], config.requireOAuth, true);
+		if (!found.model) return "fallthrough";
+		turnCounter += 1;
+		flushImplicitMisroute(event.prompt);
+		lastPrompt = event.prompt;
+		let selectedModel = ctx.model ? modelKey(ctx.model) : undefined;
+		const thinkingLevel = applyCostControlledThinking(
+			event.prompt,
+			decision,
+			found.spec?.thinking ?? decision.thinkingLevel,
+			config.costControls,
+		);
+		state.routerSettingModel = true;
+		try {
+			const ok = await pi.setModel(found.model);
+			if (ok) selectedModel = modelKey(found.model);
+		} finally {
+			state.routerSettingModel = false;
+		}
+		pi.setThinkingLevel(thinkingLevel);
+		lastDecision = {
+			...decision,
+			thinkingLevel,
+			active: true,
+			orchestrated: true,
+			anchorModel: state.anchorModel,
+			selectedModel,
+			fallbackReason: found.fallbackReason,
+		};
+		activeTurnDecision = lastDecision;
+		lastDecisionTurn = turnCounter;
+		pi.events.emit("router:decision", lastDecision);
+		return {
+			systemPrompt: `${event.systemPrompt}\n\n${ORCHESTRATOR_CHARTER}\nRouter hint: route=${decision.route}, signals=${decision.signals?.join(",") || "none"}`,
+		};
+	}
+
 	async function routePrompt(
 		event: BeforeAgentStartEvent,
 		ctx: ExtensionContext,
 	): Promise<{ systemPrompt?: string } | undefined> {
 		const config = cachedConfig ?? refreshConfig(ctx);
+		const orchestrated = await routeOrchestrated(event, ctx, config);
+		if (orchestrated !== "fallthrough") return orchestrated;
 		if (!state.active) {
 			lastDecision = {
 				active: false,
@@ -2336,6 +2702,40 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 		if (systemPrompt !== event.systemPrompt) return { systemPrompt };
 	}
 
+	pi.registerTool(
+		createDelegateTool({
+			getConfig: () => cachedConfig?.orchestration ?? DEFAULT_ORCHESTRATION,
+			getCast: (ctx) => orchestrationCast(ctx, cachedConfig ?? resolveRouterConfig(ctx.cwd || process.cwd(), homeDir)),
+			isEnabled: () => state.orchestrationActive,
+			acquireSlot: () => {
+				const max = (cachedConfig?.orchestration ?? DEFAULT_ORCHESTRATION).maxConcurrent;
+				if (delegatesRunning >= max) return undefined;
+				delegatesRunning += 1;
+				return () => {
+					delegatesRunning -= 1;
+				};
+			},
+			delegateDir: () => configuredDelegateDir,
+			recordUsage: recordOrchestrationUsage,
+			runner: delegateRunner,
+			isWorkerAvailable: (ctx, spec) =>
+				Boolean(findAvailableModel(ctx, [spec], cachedConfig?.requireOAuth ?? true).model),
+		}),
+	);
+	pi.registerTool(
+		createConsultTool({
+			getConfig: () => cachedConfig?.orchestration ?? DEFAULT_ORCHESTRATION,
+			getCast: (ctx) => orchestrationCast(ctx, cachedConfig ?? resolveRouterConfig(ctx.cwd || process.cwd(), homeDir)),
+			isEnabled: () => state.orchestrationActive,
+			acquireSlot: () => undefined,
+			delegateDir: () => configuredDelegateDir,
+			recordUsage: recordOrchestrationUsage,
+			runner: delegateRunner,
+			consultRunner,
+			isWorkerAvailable: () => true,
+		}),
+	);
+
 	pi.registerFlag(ROUTER_FLAG, {
 		description: "Enable opt-in model routing for this run",
 		type: "boolean",
@@ -2344,7 +2744,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 
 	pi.registerCommand(ROUTER_COMMAND, {
 		description:
-			"Inspect or control model routing: status | cost [history|daily] | label <route> | doctor | smoke | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+			"Inspect or control model routing: status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			const config = refreshConfig(ctx);
 			const [first, second, ...rest] = args.trim().split(/\s+/).filter(Boolean);
@@ -2355,7 +2755,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				});
 				ctx.ui.notify(
 					[
-						`${state.active ? "Router auto is on" : "Router auto is off"}. Mode: ${state.mode}. Anchor: ${state.anchorModel ?? "none"}. Synthesis: ${synthesisRoutes.length ? synthesisRoutes.join(",") : "off"}.`,
+						`${state.active ? "Router auto is on" : "Router auto is off"}. Mode: ${state.mode}. Anchor: ${state.anchorModel ?? "none"}. Synthesis: ${synthesisRoutes.length ? synthesisRoutes.join(",") : "off"}. Orchestration: ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}`,
 						lastDecision ? describeDecision(lastDecision) : "No decision yet.",
 						formatUsageTotals("Cost", usageTotals),
 						formatBudgetStatus(config),
@@ -2363,6 +2763,28 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					].join("\n"),
 					"info",
 				);
+				return;
+			}
+			if (first === "orchestrate") {
+				if (!second || second === "status") {
+					ctx.ui.notify(
+						`Router orchestration is ${state.orchestrationActive ? "on" : "off"}. ${orchestrationCastSummary(ctx, config)}`,
+						"info",
+					);
+					return;
+				}
+				if (second !== "on" && second !== "off") {
+					ctx.ui.notify("Usage: /router orchestrate on|off|status", "warning");
+					return;
+				}
+				state.orchestrationActive = second === "on";
+				syncOrchestrationTools();
+				updateConfigFile(config, (configFile) => {
+					const orchestration = isRecord(configFile.orchestration) ? configFile.orchestration : {};
+					orchestration.enabled = state.orchestrationActive;
+					configFile.orchestration = orchestration as RouterOrchestrationConfigFile;
+				});
+				ctx.ui.notify(`Router orchestration is ${state.orchestrationActive ? "on" : "off"}.`, "info");
 				return;
 			}
 			if (first === "auto" && (second === "on" || second === "off")) {
@@ -2439,11 +2861,15 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					`Project config: ${config.projectConfigPath}${existsSync(config.projectConfigPath) ? " (present)" : " (missing)"}`,
 					`Global config: ${config.globalConfigPath}${existsSync(config.globalConfigPath) ? " (present)" : " (missing)"}`,
 					`PI_ROUTER_ACTIVE: ${process.env.PI_ROUTER_ACTIVE ?? "unset"}`,
+					`PI_ROUTER_ORCHESTRATE: ${process.env.PI_ROUTER_ORCHESTRATE ?? "unset"}`,
 					`PI_BIN: ${process.env.PI_BIN ?? "pi"} -> ${commandAvailability(process.env.PI_BIN ?? "pi")}`,
 					`CLAUDE_BIN: ${process.env.CLAUDE_BIN ?? "claude"} -> ${commandAvailability(process.env.CLAUDE_BIN ?? "claude")}`,
 					`PI_CACHE_RETENTION: ${process.env.PI_CACHE_RETENTION ?? "unset"}`,
 					`Cost controls: ${config.costControls.enabled ? "enabled" : "disabled"}; preferCache=${config.costControls.preferCache}; persistHistory=${config.costControls.persistHistory}; maxDefaultThinking=${config.costControls.maxDefaultThinking ?? "none"}; synthesisMinPromptChars=${config.costControls.synthesisMinPromptChars ?? "default"}; synthesisMinConfidence=${config.costControls.synthesisMinConfidence ?? "none"}`,
 					`Shadow route: ${config.shadowRoute ? "enabled" : "disabled"}`,
+					`Orchestration: ${state.orchestrationActive ? "enabled" : "disabled"}; primary=${modelSpecKey(config.orchestration.primary)}; workers=mid:${modelSpecKey(config.orchestration.workers.mid)},small:${modelSpecKey(config.orchestration.workers.small)}; fable=${modelSpecKey(config.orchestration.consultants.fable)}`,
+					orchestrationCastSummary(ctx, config),
+					`Delegate directory: ${configuredDelegateDir}; files=${existsSync(configuredDelegateDir) ? readdirSync(configuredDelegateDir).length : 0}`,
 					`Extra keywords: ${
 						Object.entries(config.extraKeywords)
 							.flatMap(([route, keywords]) => (keywords ?? []).map((keyword) => `${route}:${keyword}`))
@@ -2460,6 +2886,15 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 					...ROUTES.map((route) =>
 						candidateStatusSummary(route, diagnoseModelCandidates(ctx, config.routes[route], config.requireOAuth)),
 					),
+					"Orchestration candidates:",
+					...(["primary", "mid", "small"] as const).map((tier) => {
+						const spec = tier === "primary" ? config.orchestration.primary : config.orchestration.workers[tier];
+						return candidateStatusSummary("general", diagnoseModelCandidates(ctx, [spec], config.requireOAuth)).replace(
+							"general:",
+							`${tier}:`,
+						);
+					}),
+					`fable: ${modelSpecKey(config.orchestration.consultants.fable)} via CLAUDE_BIN -> ${commandAvailability(process.env.CLAUDE_BIN ?? "claude")}`,
 					`Synthesis: ${config.synthesis.enabled ? "enabled" : "disabled"}`,
 					...ROUTES.flatMap((route) => {
 						const spec = config.synthesis.routes[route];
@@ -2555,7 +2990,7 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 				return;
 			}
 			ctx.ui.notify(
-				"Usage: /router status | cost [history|daily] | label <route> | doctor | smoke | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
+				"Usage: /router status | cost [history|daily] | label <route> | doctor | smoke | orchestrate on|off|status | auto on|off | mode fast|balanced|strong | effort <route|current> <level> | route <text> | use <route>",
 				"warning",
 			);
 		},
@@ -2563,6 +2998,8 @@ export default function piRouter(pi: ExtensionAPI, options: RouterOptions = {}):
 
 	pi.on("session_start", (_event, ctx) => {
 		refreshConfig(ctx);
+		if (state.orchestrationActive) pruneDelegateSessions(configuredDelegateDir);
+		syncOrchestrationTools();
 	});
 	pi.on("model_select", (_event, ctx) => {
 		if (!state.routerSettingModel && ctx.model) state.anchorModel = modelKey(ctx.model);
@@ -2599,6 +3036,7 @@ export const _test = {
 	getConfigPaths,
 	hasSynthesisDeepCue,
 	parseCostControlsConfig,
+	parseOrchestrationConfig,
 	oneThinkingStepDown,
 	parseModelSpec,
 	promptSimilarity,

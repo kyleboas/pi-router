@@ -1,8 +1,8 @@
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext, RegisteredCommand } from "@mariozechner/pi-coding-agent";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import piRouter, {
 	_test,
 	classifyPrompt,
@@ -11,6 +11,11 @@ import piRouter, {
 	resolveRouterConfig,
 	runSubprocessPanel,
 } from "../extensions/index.js";
+
+beforeEach(() => {
+	delete process.env.PI_ROUTER_ACTIVE;
+	delete process.env.PI_ROUTER_ORCHESTRATE;
+});
 
 function tempWorkspace() {
 	const root = mkdtempSync(join(tmpdir(), "pi-router-"));
@@ -23,16 +28,19 @@ function tempWorkspace() {
 
 function mockPi(flagValue = false) {
 	const commands = new Map<string, Omit<RegisteredCommand, "name">>();
+	const tools = new Map<string, unknown>();
 	const handlers = new Map<string, (event: unknown, ctx: ExtensionContext) => unknown>();
 	const events: unknown[] = [];
 	return {
 		commands,
+		tools,
 		handlers,
 		events,
 		pi: {
 			registerFlag: vi.fn(),
 			getFlag: vi.fn((name: string) => (name === _test.ROUTER_FLAG ? flagValue : undefined)),
 			registerCommand: vi.fn((name: string, options: Omit<RegisteredCommand, "name">) => commands.set(name, options)),
+			registerTool: vi.fn((tool: { name: string }) => tools.set(tool.name, tool)),
 			on: vi.fn((event: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) =>
 				handlers.set(event, handler),
 			),
@@ -315,7 +323,7 @@ describe("router extension", () => {
 			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
 			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: false }));
 			const { pi, handlers, events } = mockPi(false);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5" }]);
 			await handlers.get("before_agent_start")?.({ type: "before_agent_start", prompt: "fix tests" }, ctx);
 			expect(events[0]).toMatchObject({ active: false });
@@ -329,7 +337,7 @@ describe("router extension", () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
 			const { pi, handlers, events } = mockPi(true);
-			piRouter(pi, { usageHistoryPath: join(cwd, "router-usage.jsonl") });
+			piRouter(pi, { homeDir: cwd, usageHistoryPath: join(cwd, "router-usage.jsonl") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -348,7 +356,7 @@ describe("router extension", () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
 			const { pi, handlers, commands, events } = mockPi(true);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -388,7 +396,7 @@ describe("router extension", () => {
 		try {
 			const historyPath = join(cwd, "router-usage.jsonl");
 			const { pi, handlers, commands } = mockPi(true);
-			piRouter(pi, { usageHistoryPath: historyPath, now: () => new Date("2026-06-28T12:00:00.000Z") });
+			piRouter(pi, { homeDir: cwd, usageHistoryPath: historyPath, now: () => new Date("2026-06-28T12:00:00.000Z") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -427,7 +435,7 @@ describe("router extension", () => {
 			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
 			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: true, shadowRoute: true }));
 			const { pi, handlers } = mockPi(false);
-			piRouter(pi, { usageHistoryPath: historyPath, now: () => new Date("2026-06-28T12:00:00.000Z") });
+			piRouter(pi, { homeDir: cwd, usageHistoryPath: historyPath, now: () => new Date("2026-06-28T12:00:00.000Z") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -483,6 +491,7 @@ describe("router extension", () => {
 			const misroutePath = join(cwd, "misroutes.jsonl");
 			const { pi, handlers, commands } = mockPi(true);
 			piRouter(pi, {
+				homeDir: cwd,
 				misrouteHistoryPath: misroutePath,
 				now: () => new Date("2026-06-28T12:00:00.000Z"),
 			});
@@ -512,6 +521,7 @@ describe("router extension", () => {
 			const misroutePath = join(cwd, "misroutes.jsonl");
 			const { pi, handlers, commands } = mockPi(true);
 			piRouter(pi, {
+				homeDir: cwd,
 				misrouteHistoryPath: misroutePath,
 				now: () => new Date("2026-06-28T12:00:00.000Z"),
 			});
@@ -545,7 +555,7 @@ describe("router extension", () => {
 		try {
 			const misroutePath = join(cwd, "misroutes.jsonl");
 			const { pi, handlers, commands } = mockPi(true);
-			piRouter(pi, { misrouteHistoryPath: misroutePath });
+			piRouter(pi, { homeDir: cwd, misrouteHistoryPath: misroutePath });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -570,7 +580,7 @@ describe("router extension", () => {
 			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
 			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: true }));
 			const { pi, handlers, commands } = mockPi(false);
-			piRouter(pi, { misrouteHistoryPath: misroutePath });
+			piRouter(pi, { homeDir: cwd, misrouteHistoryPath: misroutePath });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -604,7 +614,7 @@ describe("router extension", () => {
 				JSON.stringify({ active: true, costControls: { sessionBudgetUsd: 0.01, warnAtPct: 0.5 } }),
 			);
 			const { pi, handlers, commands, events } = mockPi(false);
-			piRouter(pi, { usageHistoryPath: join(cwd, "router-usage.jsonl") });
+			piRouter(pi, { homeDir: cwd, usageHistoryPath: join(cwd, "router-usage.jsonl") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -663,7 +673,7 @@ describe("router extension", () => {
 			delete process.env.PI_ROUTER_LIVE;
 			const { pi, commands } = mockPi(false);
 			const panelRunner = vi.fn(async () => []);
-			piRouter(pi, { panelRunner });
+			piRouter(pi, { homeDir: cwd, panelRunner });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await commands.get(_test.ROUTER_COMMAND)?.handler("smoke", ctx as never);
 			expect(panelRunner).not.toHaveBeenCalled();
@@ -679,7 +689,7 @@ describe("router extension", () => {
 		const { cwd, cleanup } = tempWorkspace();
 		try {
 			const { pi, handlers } = mockPi(true);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -707,7 +717,7 @@ describe("router extension", () => {
 				}),
 			);
 			const { pi, handlers } = mockPi(false);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [
 				{ provider: "claude-cli", id: "opus-4.8", oauth: true },
 				{ provider: "openai-codex", id: "gpt-5.5", oauth: true },
@@ -733,7 +743,7 @@ describe("router extension", () => {
 			);
 			const { pi, handlers } = mockPi(false);
 			(pi.getActiveTools as ReturnType<typeof vi.fn>).mockReturnValue(["read", "bash"]);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -754,7 +764,7 @@ describe("router extension", () => {
 			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
 			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: true }));
 			const { pi, handlers, commands } = mockPi(false);
-			piRouter(pi, { usageHistoryPath: join(cwd, "router-usage.jsonl") });
+			piRouter(pi, { homeDir: cwd, usageHistoryPath: join(cwd, "router-usage.jsonl") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await commands.get(_test.ROUTER_COMMAND)?.handler("effort general high", ctx as never);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
@@ -802,7 +812,7 @@ describe("router extension", () => {
 					},
 				];
 			});
-			piRouter(pi, { panelRunner, usageHistoryPath: historyPath });
+			piRouter(pi, { homeDir: cwd, panelRunner, usageHistoryPath: historyPath });
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			const result = await handlers.get("before_agent_start")?.(
 				{
@@ -845,7 +855,7 @@ describe("router extension", () => {
 			const panelRunner = vi.fn(async () => [
 				{ model: "openai-codex/gpt-5.5:xhigh", ok: false, text: "timeout", diagnostic: "timeout", latencyMs: 50 },
 			]);
-			piRouter(pi, { panelRunner, usageHistoryPath: join(cwd, "router-usage.jsonl") });
+			piRouter(pi, { homeDir: cwd, panelRunner, usageHistoryPath: join(cwd, "router-usage.jsonl") });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			const result = await handlers.get("before_agent_start")?.(
@@ -916,7 +926,7 @@ describe("router extension", () => {
 			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
 			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ active: true }));
 			const { pi, handlers } = mockPi(false);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -937,7 +947,7 @@ describe("router extension", () => {
 			mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
 			writeFileSync(join(cwd, ".pi", "extensions", "router.json"), JSON.stringify({ mode: "bad" }));
 			const { pi, commands } = mockPi(false);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await commands.get(_test.ROUTER_COMMAND)?.handler("doctor", ctx as never);
 			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Router doctor"), "info");
@@ -962,7 +972,7 @@ describe("router extension", () => {
 				}),
 			);
 			const { pi, commands } = mockPi(false);
-			piRouter(pi);
+			piRouter(pi, { homeDir: cwd });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await commands.get(_test.ROUTER_COMMAND)?.handler("auto on", ctx as never);
 			const persisted = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -992,7 +1002,7 @@ describe("router extension", () => {
 			const panelRunner = vi.fn(async () => [
 				{ model: "openai-codex/gpt-5.5:xhigh", ok: true, text: "panel", latencyMs: 5 },
 			]);
-			piRouter(pi, { panelRunner });
+			piRouter(pi, { homeDir: cwd, panelRunner });
 			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
 			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
 			await handlers.get("before_agent_start")?.(
@@ -1004,6 +1014,92 @@ describe("router extension", () => {
 				ctx,
 			);
 			expect(panelRunner).not.toHaveBeenCalled();
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("pins the orchestration primary and persists orchestration controls", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const configPath = join(cwd, ".pi", "extensions", "router.json");
+			mkdirSync(dirname(configPath), { recursive: true });
+			writeFileSync(
+				join(cwd, ".pi", "settings.json"),
+				JSON.stringify({
+					scopedModels: [
+						"openai-codex/gpt-5.6",
+						"openai-codex/gpt-5.6-sol",
+						"openai-codex/gpt-5.6-terra",
+						"openai-codex/gpt-5.6-luna",
+					],
+				}),
+			);
+			writeFileSync(configPath, JSON.stringify({ orchestration: { enabled: true, pool: "scoped" } }));
+			const { pi, handlers, commands, events } = mockPi(false);
+			piRouter(pi, { homeDir: cwd });
+			const ctx = mockContext(cwd, [
+				{ provider: "openai-codex", id: "gpt-5.6", oauth: true },
+				{ provider: "openai-codex", id: "gpt-5.6-sol", oauth: true },
+				{ provider: "openai-codex", id: "gpt-5.5", oauth: true },
+			]);
+			await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			expect(pi.setActiveTools).toHaveBeenCalledWith(["read", "bash", "edit", "write", "delegate", "consult"]);
+			const result = await handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "fix the failing TypeScript tests", systemPrompt: "base" },
+				ctx,
+			);
+			expect(pi.setModel).toHaveBeenCalledWith(expect.objectContaining({ id: "gpt-5.6" }));
+			expect(pi.setThinkingLevel).toHaveBeenCalledWith("high");
+			expect(result).toMatchObject({ systemPrompt: expect.stringContaining("Router orchestration charter") });
+			expect(result).toMatchObject({ systemPrompt: expect.stringContaining("Router hint: route=code") });
+			expect(events.at(-1)).toMatchObject({ orchestrated: true, selectedModel: "openai-codex/gpt-5.6" });
+			(pi.getActiveTools as ReturnType<typeof vi.fn>).mockReturnValue([
+				"read",
+				"bash",
+				"edit",
+				"write",
+				"delegate",
+				"consult",
+			]);
+			await commands.get(_test.ROUTER_COMMAND)?.handler("orchestrate off", ctx as never);
+			expect(pi.setActiveTools).toHaveBeenLastCalledWith(["read", "bash", "edit", "write"]);
+			expect(JSON.parse(readFileSync(configPath, "utf-8")).orchestration.enabled).toBe(false);
+			await commands.get(_test.ROUTER_COMMAND)?.handler("doctor", ctx as never);
+			expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Delegate directory:"), "info");
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("falls back to keyword routing only when router auto is active and the orchestration primary is unavailable", async () => {
+		const { cwd, cleanup } = tempWorkspace();
+		try {
+			const configPath = join(cwd, ".pi", "extensions", "router.json");
+			mkdirSync(dirname(configPath), { recursive: true });
+			writeFileSync(configPath, JSON.stringify({ orchestration: { enabled: true } }));
+			const inactive = mockPi(false);
+			piRouter(inactive.pi, { homeDir: cwd });
+			const ctx = mockContext(cwd, [{ provider: "openai-codex", id: "gpt-5.5", oauth: true }]);
+			await inactive.handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await inactive.handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "fix the failing TypeScript tests", systemPrompt: "base" },
+				ctx,
+			);
+			expect(inactive.pi.setModel).not.toHaveBeenCalled();
+			expect(inactive.events.at(-1)).toMatchObject({ active: false });
+
+			writeFileSync(configPath, JSON.stringify({ active: true, orchestration: { enabled: true } }));
+			const active = mockPi(false);
+			piRouter(active.pi, { homeDir: cwd });
+			await active.handlers.get("session_start")?.({ type: "session_start" }, ctx);
+			await active.handlers.get("before_agent_start")?.(
+				{ type: "before_agent_start", prompt: "fix the failing TypeScript tests", systemPrompt: "base" },
+				ctx,
+			);
+			expect(active.pi.setModel).toHaveBeenCalledWith(expect.objectContaining({ id: "gpt-5.5" }));
+			expect(active.events.at(-1)).toMatchObject({ active: true, route: "code" });
+			expect(active.events.at(-1)).not.toHaveProperty("orchestrated");
 		} finally {
 			cleanup();
 		}

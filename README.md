@@ -62,6 +62,7 @@ PI_ROUTER_ACTIVE=1 pi "fix the failing tests"
 - `/router doctor` — validate config, env overrides, model availability, cache env, cost controls, history path, and synthesis setup
 - `/router smoke` — opt-in live panel smoke test; requires `PI_ROUTER_LIVE=1`
 - `/router auto on|off`
+- `/router orchestrate on|off|status`
 - `/router mode fast|balanced|strong`
 - `/router effort <route|current> off|minimal|low|medium|high|xhigh`
 - `/router route <text>` — preview route, thinking level, classifier rule, confidence, signals, and synthesis
@@ -184,6 +185,35 @@ Synthesis controls:
 - `costControls.synthesisRequireDeepCue`: require architecture/tradeoff/root-cause/research-style cues.
 - `costControls.synthesisCooldownTurns` / `synthesisMaxPerSession`: cap panel frequency.
 - `costControls.disableSynthesisOverBudget`: skip panels after session/daily budgets are exceeded.
+
+## Orchestration
+
+Orchestration is opt-in and pins each turn to one primary model. The primary can use `delegate` to send self-contained work to mid or small workers with a minimal tool allowlist. Worker sessions can be steered with `continueId` and are stored under `~/.pi/agent/extensions/router-delegates/`. The `consult` tool asks Fable through the Claude CLI as a read-only advisor, and should be used only when the user explicitly asks.
+
+Pool-enabled configuration (other fields show defaults):
+
+```json
+{
+  "orchestration": {
+    "enabled": false,
+    "pool": "scoped",
+    "primary": "openai-codex/gpt-5.6-sol",
+    "workers": {
+      "mid": "openai-codex/gpt-5.6-terra:medium",
+      "small": "openai-codex/gpt-5.6-luna:low"
+    },
+    "consultants": { "fable": "claude-cli/claude-fable-5" },
+    "delegateTimeoutMs": 600000,
+    "consultTimeoutMs": 120000,
+    "maxConcurrent": 2,
+    "maxOutputChars": 16000
+  }
+}
+```
+
+`pool` can be `"scoped"` or an ordered array of model specs. Scoped pools read `scopedModels` from `.pi/settings.json`, falling back to `~/.pi/agent/settings.json`; project settings win. Pool order is strongest first: the router derives primary from the first available model, mid from the middle, and small from the last. Explicit `primary` or worker slots override their derived pool slot.
+
+Use `/router orchestrate on|off|status` to persistently control the mode. `PI_ROUTER_ORCHESTRATE=1` or `=0` overrides config for a run. Delegate and consult subprocess usage appears in `/router cost` and persisted usage history with `kind: "delegate"` and `kind: "consult"`.
 
 ## Diagnostics and visibility
 
